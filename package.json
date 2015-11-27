@@ -1,0 +1,30 @@
+{
+  "name": "tspack",
+  "version": "0.0.1",
+  "author": "tspack.org",
+  "homepage": "http://tspack.org/",
+  "description": "A bundler for typescript. Packs many modules into a few bundled assets. Allows to split your codebase into multiple bundles, which can be loaded on demand.",
+  "license": "MIT",
+  "keywords": [
+    "typescript",
+    "tspack",
+    "bundle",
+    "module",
+    "javascript"
+  ],
+  "bugs": {
+    "url": "https://github.com/tspack/tspack/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tspack/tspack.git"
+  },
+  "main": "./lib/tspack.js",
+  "typings": "./lib/tspack.d.ts",
+  "bin": {
+    "tsp": "./bin/tsp"
+  },
+  "engines": {
+    "node": ">=0.8.0"
+  }
+}
