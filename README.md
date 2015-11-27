@@ -6,7 +6,7 @@ tspack is a bundler for typescript modules. Packs many modules into a few bundle
 # Installation
 
 project:
-`npm install webpack --save-dev`
+`npm install webpack`
 
 global:
 `npm install webpack -g`
