@@ -1,2 +1,2 @@
-# tslib
-A set of complementary tools to TypeScript
+# tspack
+A module bundler for TypeScript
