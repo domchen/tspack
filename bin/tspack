@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-require('../lib/tspack.js')
+require('../src/tools/Entry.js');

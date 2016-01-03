@@ -19,10 +19,14 @@
     "type": "git",
     "url": "https://github.com/tspack/tspack.git"
   },
+  "main": "./lib/tspack.js",
   "bin": {
     "tspack": "./bin/tspack"
   },
   "engines": {
     "node": ">=0.8.0"
+  },
+  "dependencies": {
+    "typescript": "^1.7.5"
   }
 }
