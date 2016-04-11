@@ -2,3 +2,4 @@
 /bin-debug
 .settings/
 node_modules
+test

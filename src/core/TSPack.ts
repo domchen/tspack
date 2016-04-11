@@ -24,13 +24,13 @@
 //  
 //////////////////////////////////////////////////////////////////////////////////////
 
-class TSPack {
+module tsp {
+    export class TSPack {
 
-    public msg:string = "it works!";
+        public msg:string = "it works!";
 
-    public trace():void {
-        console.log(this.msg);
+        public trace():void {
+            console.log(this.msg);
+        }
     }
 }
-
-export = TSPack;
