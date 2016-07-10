@@ -1,8 +1,8 @@
 {
   "name": "tspack",
-  "version": "0.0.2",
-  "author": "tspack.org",
-  "homepage": "http://www.tspack.org/",
+  "version": "0.0.3",
+  "author": "elvenjs.com",
+  "homepage": "http://tspack.elvenjs.com/",
   "description": "A bundler for typescript. Packs many modules into a few bundled assets. Allows to split your codebase into multiple bundles, which can be loaded on demand.",
   "license": "MIT",
   "keywords": [
@@ -13,11 +13,11 @@
     "javascript"
   ],
   "bugs": {
-    "url": "https://github.com/tspack/tspack/issues"
+    "url": "https://github.com/elvenjs/tspack/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tspack/tspack.git"
+    "url": "https://github.com/elvenjs/tspack.git"
   },
   "main": "./lib/tspack.js",
   "bin": {

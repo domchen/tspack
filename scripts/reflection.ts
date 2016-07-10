@@ -1,9 +1,10 @@
 //////////////////////////////////////////////////////////////////////////////////////
 //
-//  TSPack is released under the MIT license:
+//  Copyright (c) elvenjs.com
 //
-//  Copyright (c) TSPack.org
 //  All rights reserved.
+//
+//  MIT license
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy of
 //  this software and associated documentation files (the "Software"), to deal in the
@@ -23,6 +24,7 @@
 //  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 //////////////////////////////////////////////////////////////////////////////////////
+
 
 namespace ts {
 
