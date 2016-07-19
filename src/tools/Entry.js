@@ -2,7 +2,7 @@
 //
 //  The MIT License (MIT)
 //
-//  Copyright (c) 2016-present, ElvenJS.com.
+//  Copyright (c) 2015-present, Dom Chen.
 //  All rights reserved.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy of
