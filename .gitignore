@@ -2,6 +2,5 @@
 /bin-debug
 .settings/
 node_modules
-test
-/scripts/loader.js
-/scripts/reflection.js
+/test
+.idea/
