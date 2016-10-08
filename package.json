@@ -28,6 +28,6 @@
   },
   "dependencies": {
     "chokidar": "latest",
-    "typescript": "latest"
+    "typescript": "2.0.3"
   }
 }

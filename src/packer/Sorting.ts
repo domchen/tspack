@@ -27,23 +27,22 @@
 //
 //////////////////////////////////////////////////////////////////////////////////////
 
-declare namespace tspack {
-    export interface PackerOptions {
-        projectDir?:string,
-        outDir?:string
-    }
+import * as ts from "typescript";
 
-    export interface ModuleConfig {
-        name?:string,
-        baseDir?:string,
-        outFile?:string,
-        noEmitDeclaration?:boolean,
-        files?:string[],
-        include?:string[],
-        exclude?:string[],
-        dependencies?:string[],
-        /** internal **/
-        declarationFileName?:string,
-        dependentModules?:ModuleConfig[]
+let files:ts.SourceFile[];
+
+export function sortFiles(sourceFiles:ts.SourceFile[]):ts.SourceFile[] {
+    sourceFiles = sourceFiles.concat();
+    files = sourceFiles;
+    buildDependencyMap();
+    
+    files = null;
+    return sourceFiles;
+}
+
+function buildDependencyMap():void {
+    for (let i = 0; i < files.length; i++) {
+        let sourceFile = files[i];
+
     }
 }

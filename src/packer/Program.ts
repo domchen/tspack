@@ -25,7 +25,9 @@
 //////////////////////////////////////////////////////////////////////////////////////
 
 import * as path from "path";
+import * as fs from "fs";
 import * as ts from "typescript";
+import * as Sorting from "./Sorting";
 
 const defaultFormatDiagnosticsHost:ts.FormatDiagnosticsHost = {
     getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
@@ -63,8 +65,9 @@ function run(args:string[]):void {
     let modules:tspack.ModuleConfig[] = configObject["modules"];
     formatDependencies(modules, packerOptions);
     modules.forEach(moduleConfig=> {
-        compileModule(moduleConfig, packerOptions, compilerOptions);
-    })
+        emitModule(moduleConfig, packerOptions, compilerOptions);
+    });
+    removeDeclarations(modules);
 }
 
 function getModuleFileName(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.PackerOptions):string {
@@ -108,28 +111,27 @@ function convertPackerOptionsFromJson(json:any, baseDir:string):tspack.PackerOpt
 }
 
 function formatDependencies(moduleConfigs:tspack.ModuleConfig[], packerOptions:tspack.PackerOptions):void {
-    var tsdMap:{[key:string]:string} = {};
+    var tsdMap:{[key:string]:tspack.ModuleConfig} = {};
     moduleConfigs.forEach(moduleConfig=> {
         let outFile = moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
         if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
             outFile = outFile.substr(0, outFile.length - 3);
         }
-        tsdMap[moduleConfig.name] = outFile + ".d.ts";
+        moduleConfig.declarationFileName = outFile + ".d.ts";
+        tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(moduleConfig=> {
         if (isArray(moduleConfig.dependencies)) {
             let dependencies = moduleConfig.dependencies;
+            moduleConfig.dependentModules = [];
             for (let i = 0; i < dependencies.length; i++) {
-                let tsd = tsdMap[dependencies[i]];
-                if (!tsd) {
+                let config = tsdMap[dependencies[i]];
+                if (!config) {
                     ts.sys.write("error tspack.json: Could not find the name of dependency: " + dependencies[i] + ts.sys.newLine);
                     ts.sys.exit(1);
                 }
-                dependencies[i] = tsd;
+                moduleConfig.dependentModules.push(config);
             }
-        }
-        else {
-            moduleConfig.dependencies = [];
         }
     });
 }
@@ -138,10 +140,19 @@ function isArray(value:any):value is any[] {
     return Array.isArray ? Array.isArray(value) : value instanceof Array;
 }
 
-function compileModule(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.PackerOptions, compilerOptions:ts.CompilerOptions):void {
+function emitModule(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.PackerOptions, compilerOptions:ts.CompilerOptions):void {
     compilerOptions.outFile = moduleConfig.outFile;
     let fileNames = getFileNames(moduleConfig, packerOptions.projectDir);
     let program = ts.createProgram(fileNames, compilerOptions);
+    let sourceFiles = program.getSourceFiles();
+    fileNames = program.getRootFileNames();
+    let sortedFiles = Sorting.sortFiles(sourceFiles);
+    sourceFiles.length = 0;
+    fileNames.length = 0;
+    sortedFiles.forEach(sourceFile=> {
+        sourceFiles.push(sourceFile);
+        fileNames.push(sourceFile.fileName);
+    });
     let emitResult = program.emit();
     let allDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
     if (allDiagnostics.length == 0) {
@@ -167,10 +178,29 @@ function getFileNames(moduleConfig:tspack.ModuleConfig, baseDir):string[] {
         return;
     }
     let fileNames = optionResult.fileNames;
-    if (moduleConfig.dependencies) {
-        fileNames = fileNames.concat(moduleConfig.dependencies);
+    if (moduleConfig.dependentModules) {
+        moduleConfig.dependentModules.forEach(config=> {
+            fileNames.push(config.declarationFileName);
+        });
     }
     return fileNames;
+}
+
+function removeDeclarations(modules:tspack.ModuleConfig[]):void {
+    modules.forEach(moduleConfig=> {
+        if (!moduleConfig.noEmitDeclaration) {
+            return;
+        }
+        let fileName = moduleConfig.declarationFileName;
+        if (ts.sys.fileExists(fileName)) {
+            try {
+                fs.unlinkSync(fileName);
+            }
+            catch (e) {
+            }
+        }
+
+    })
 }
 
 

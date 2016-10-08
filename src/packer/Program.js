@@ -1,6 +1,8 @@
 "use strict";
 var path = require("path");
+var fs = require("fs");
 var ts = require("typescript");
+var Sorting = require("./Sorting");
 var defaultFormatDiagnosticsHost = {
     getCurrentDirectory: function () { return ts.sys.getCurrentDirectory(); },
     getNewLine: function () { return ts.sys.newLine; },
@@ -35,8 +37,9 @@ function run(args) {
     var modules = configObject["modules"];
     formatDependencies(modules, packerOptions);
     modules.forEach(function (moduleConfig) {
-        compileModule(moduleConfig, packerOptions, compilerOptions);
+        emitModule(moduleConfig, packerOptions, compilerOptions);
     });
+    removeDeclarations(modules);
 }
 function getModuleFileName(moduleConfig, packerOptions) {
     if (moduleConfig.outFile) {
@@ -82,32 +85,40 @@ function formatDependencies(moduleConfigs, packerOptions) {
         if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
             outFile = outFile.substr(0, outFile.length - 3);
         }
-        tsdMap[moduleConfig.name] = outFile + ".d.ts";
+        moduleConfig.declarationFileName = outFile + ".d.ts";
+        tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(function (moduleConfig) {
         if (isArray(moduleConfig.dependencies)) {
             var dependencies = moduleConfig.dependencies;
+            moduleConfig.dependentModules = [];
             for (var i = 0; i < dependencies.length; i++) {
-                var tsd = tsdMap[dependencies[i]];
-                if (!tsd) {
+                var config = tsdMap[dependencies[i]];
+                if (!config) {
                     ts.sys.write("error tspack.json: Could not find the name of dependency: " + dependencies[i] + ts.sys.newLine);
                     ts.sys.exit(1);
                 }
-                dependencies[i] = tsd;
+                moduleConfig.dependentModules.push(config);
             }
-        }
-        else {
-            moduleConfig.dependencies = [];
         }
     });
 }
 function isArray(value) {
     return Array.isArray ? Array.isArray(value) : value instanceof Array;
 }
-function compileModule(moduleConfig, packerOptions, compilerOptions) {
+function emitModule(moduleConfig, packerOptions, compilerOptions) {
     compilerOptions.outFile = moduleConfig.outFile;
     var fileNames = getFileNames(moduleConfig, packerOptions.projectDir);
     var program = ts.createProgram(fileNames, compilerOptions);
+    var sourceFiles = program.getSourceFiles();
+    fileNames = program.getRootFileNames();
+    var sortedFiles = Sorting.sortFiles(sourceFiles);
+    sourceFiles.length = 0;
+    fileNames.length = 0;
+    sortedFiles.forEach(function (sourceFile) {
+        sourceFiles.push(sourceFile);
+        fileNames.push(sourceFile.fileName);
+    });
     var emitResult = program.emit();
     var allDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
     if (allDiagnostics.length == 0) {
@@ -131,9 +142,26 @@ function getFileNames(moduleConfig, baseDir) {
         return;
     }
     var fileNames = optionResult.fileNames;
-    if (moduleConfig.dependencies) {
-        fileNames = fileNames.concat(moduleConfig.dependencies);
+    if (moduleConfig.dependentModules) {
+        moduleConfig.dependentModules.forEach(function (config) {
+            fileNames.push(config.declarationFileName);
+        });
     }
     return fileNames;
+}
+function removeDeclarations(modules) {
+    modules.forEach(function (moduleConfig) {
+        if (!moduleConfig.noEmitDeclaration) {
+            return;
+        }
+        var fileName = moduleConfig.declarationFileName;
+        if (ts.sys.fileExists(fileName)) {
+            try {
+                fs.unlinkSync(fileName);
+            }
+            catch (e) {
+            }
+        }
+    });
 }
 run(ts.sys.args);
