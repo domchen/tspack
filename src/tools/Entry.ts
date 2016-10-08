@@ -30,7 +30,7 @@ import * as ts from "typescript";
 import * as chokidar from "chokidar";
 
 function watch(rootFileNames:string[], options:ts.CompilerOptions) {
-    const files:ts.Map<{ version: number }> = {};
+    const files:ts.Map<{ version: number }> = <any>{};
 
     // initialize the list of files
     rootFileNames.forEach(fileName => {
