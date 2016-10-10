@@ -55,7 +55,6 @@ function watch(rootFileNames:string[], options:ts.CompilerOptions) {
 
     // Create the language service files
     const services = ts.createLanguageService(servicesHost, ts.createDocumentRegistry())
-
     // Now let's watch the files
     rootFileNames.forEach(fileName => {
         // First time around, emit all files

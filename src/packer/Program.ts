@@ -144,9 +144,17 @@ function emitModule(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.Packe
     compilerOptions.outFile = moduleConfig.outFile;
     let fileNames = getFileNames(moduleConfig, packerOptions.projectDir);
     let program = ts.createProgram(fileNames, compilerOptions);
+    let diagnostics = ts.getPreEmitDiagnostics(program);
+    if (diagnostics.length > 0) {
+        diagnostics.forEach(diagnostic => {
+            ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
+        });
+        ts.sys.exit(1);
+        return;
+    }
     let sourceFiles = program.getSourceFiles();
     fileNames = program.getRootFileNames();
-    let sortedFiles = Sorting.sortFiles(sourceFiles);
+    let sortedFiles = Sorting.sortFiles(sourceFiles, program.getTypeChecker());
     sourceFiles.length = 0;
     fileNames.length = 0;
     sortedFiles.forEach(sourceFile=> {
@@ -154,17 +162,15 @@ function emitModule(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.Packe
         fileNames.push(sourceFile.fileName);
     });
     let emitResult = program.emit();
-    let allDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
-    if (allDiagnostics.length == 0) {
+    if (emitResult.diagnostics.length > 0) {
+        emitResult.diagnostics.forEach(diagnostic => {
+            ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
+        });
+        let exitCode = emitResult.emitSkipped ? 1 : 0;
+        ts.sys.exit(exitCode);
         return;
     }
-    allDiagnostics.forEach(diagnostic => {
-        ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
-    });
 
-    let exitCode = emitResult.emitSkipped ? 1 : 0;
-    console.log(`Process exiting with code '${exitCode}'.`);
-    process.exit(exitCode);
 }
 
 function getFileNames(moduleConfig:tspack.ModuleConfig, baseDir):string[] {

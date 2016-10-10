@@ -110,9 +110,17 @@ function emitModule(moduleConfig, packerOptions, compilerOptions) {
     compilerOptions.outFile = moduleConfig.outFile;
     var fileNames = getFileNames(moduleConfig, packerOptions.projectDir);
     var program = ts.createProgram(fileNames, compilerOptions);
+    var diagnostics = ts.getPreEmitDiagnostics(program);
+    if (diagnostics.length > 0) {
+        diagnostics.forEach(function (diagnostic) {
+            ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
+        });
+        ts.sys.exit(1);
+        return;
+    }
     var sourceFiles = program.getSourceFiles();
     fileNames = program.getRootFileNames();
-    var sortedFiles = Sorting.sortFiles(sourceFiles);
+    var sortedFiles = Sorting.sortFiles(sourceFiles, program.getTypeChecker());
     sourceFiles.length = 0;
     fileNames.length = 0;
     sortedFiles.forEach(function (sourceFile) {
@@ -120,16 +128,14 @@ function emitModule(moduleConfig, packerOptions, compilerOptions) {
         fileNames.push(sourceFile.fileName);
     });
     var emitResult = program.emit();
-    var allDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
-    if (allDiagnostics.length == 0) {
+    if (emitResult.diagnostics.length > 0) {
+        emitResult.diagnostics.forEach(function (diagnostic) {
+            ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
+        });
+        var exitCode = emitResult.emitSkipped ? 1 : 0;
+        ts.sys.exit(exitCode);
         return;
     }
-    allDiagnostics.forEach(function (diagnostic) {
-        ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
-    });
-    var exitCode = emitResult.emitSkipped ? 1 : 0;
-    console.log("Process exiting with code '" + exitCode + "'.");
-    process.exit(exitCode);
 }
 function getFileNames(moduleConfig, baseDir) {
     if (moduleConfig.baseDir) {

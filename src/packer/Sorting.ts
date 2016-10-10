@@ -29,20 +29,173 @@
 
 import * as ts from "typescript";
 
+let checker:ts.TypeChecker;
 let files:ts.SourceFile[];
+let dependencyMap:{[key:string]:string[]};
 
-export function sortFiles(sourceFiles:ts.SourceFile[]):ts.SourceFile[] {
+export function sortFiles(sourceFiles:ts.SourceFile[], typeChecker:ts.TypeChecker):ts.SourceFile[] {
     sourceFiles = sourceFiles.concat();
     files = sourceFiles;
+    checker = typeChecker;
+    dependencyMap = createMap();
     buildDependencyMap();
-    
+
     files = null;
+    checker = null;
+    dependencyMap = null;
     return sourceFiles;
+}
+
+function createMap():{[key:string]:string[]} {
+    let obj:any = Object.create(null);
+    obj.__v8__ = undefined;
+    delete obj.__v8__;
+    return obj;
+}
+
+function addDependency(file:string, dependent:string):void {
+    if (file == dependent) {
+        return;
+    }
+    let list = dependencyMap[file];
+    if (!list) {
+        list = dependencyMap[file] = [];
+    }
+    if (list.indexOf(dependent) == -1) {
+        list.push(dependent);
+    }
 }
 
 function buildDependencyMap():void {
     for (let i = 0; i < files.length; i++) {
         let sourceFile = files[i];
+        if (sourceFile.isDeclarationFile) {
+            continue;
+        }
+        visitFile(sourceFile);
+    }
+}
 
+function visitFile(sourceFile:ts.SourceFile):void {
+    let statements = sourceFile.statements;
+    let length = statements.length;
+    for (let i = 0; i < length; i++) {
+        visitStatement(statements[i]);
+    }
+}
+
+function visitStatement(statement:ts.Statement):void {
+    switch (statement.kind) {
+        case ts.SyntaxKind.ClassDeclaration:
+            checkSuperClass(<ts.ClassDeclaration>statement);
+            checkStaticMember(<ts.ClassDeclaration>statement);
+            break;
+        case ts.SyntaxKind.VariableStatement:
+            let variable = <ts.VariableStatement>statement;
+            variable.declarationList.declarations.forEach(declaration=> {
+                checkExpression(declaration.initializer);
+            });
+            break;
+        case ts.SyntaxKind.ExpressionStatement:
+            let expression = <ts.ExpressionStatement>statement;
+            checkExpression(expression.expression);
+            break;
+        case ts.SyntaxKind.ImportEqualsDeclaration:
+            checkImport(<ts.ImportEqualsDeclaration>statement);
+            break;
+        case ts.SyntaxKind.ModuleDeclaration:
+            visitModule(<ts.ModuleDeclaration>statement);
+            break;
+    }
+}
+
+function visitModule(node:ts.ModuleDeclaration):void {
+    if (node.flags & ts.NodeFlags.Ambient) {
+        return;
+    }
+    if (node.body.kind == ts.SyntaxKind.ModuleDeclaration) {
+        visitModule(<ts.ModuleDeclaration>node.body);
+        return;
+    }
+    let statements = (<ts.ModuleBlock>node.body).statements;
+    let length = statements.length;
+    for (let i = 0; i < length; i++) {
+        visitStatement(statements[i]);
+    }
+}
+
+function checkImport(statement:ts.ImportEqualsDeclaration):void {
+    let currentFileName = statement.getSourceFile().fileName;
+    let importDeclaration = <ts.ImportEqualsDeclaration>statement;
+    if(importDeclaration.moduleReference.kind==ts.SyntaxKind.QualifiedName){
+        let qualifiedName = <ts.QualifiedName>importDeclaration.moduleReference;
+        let type = checker.getTypeAtLocation(qualifiedName);
+        let declarations = type.symbol.getDeclarations();
+        declarations.forEach(declaration=> {
+            let file = declaration.getSourceFile();
+            if (file.isDeclarationFile) {
+                return;
+            }
+            addDependency(currentFileName, file.fileName);
+        })
+    }
+}
+
+
+function checkSuperClass(node:ts.ClassDeclaration):void {
+    if (!node.heritageClauses) {
+        return;
+    }
+    let heritageClause:ts.HeritageClause = null;
+    for (const clause of node.heritageClauses) {
+        if (clause.token === ts.SyntaxKind.ExtendsKeyword) {
+            heritageClause = clause;
+            break;
+        }
+    }
+    if (!heritageClause) {
+        return;
+    }
+    let superClasses = heritageClause.types;
+    if (!superClasses) {
+        return;
+    }
+    let currentFileName = node.getSourceFile().fileName;
+    superClasses.forEach(superClass=> {
+        let type = checker.getTypeAtLocation(superClass);
+        let declarations = type.symbol.getDeclarations();
+        declarations.forEach(declaration=> {
+            let file = declaration.getSourceFile();
+            if (file.isDeclarationFile) {
+                return;
+            }
+            addDependency(currentFileName, file.fileName);
+        })
+    });
+}
+
+function checkStaticMember(node:ts.ClassDeclaration):void {
+    let members = node.members;
+    if (!members) {
+        return;
+    }
+    for (let member of members) {
+        if (!(member.flags & ts.NodeFlags.Static)) {
+            continue;
+        }
+        switch (member.kind) {
+            case ts.SyntaxKind.PropertyDeclaration:
+                let property = <ts.PropertyDeclaration>member;
+                checkExpression(property.initializer);
+                break;
+        }
+    }
+}
+
+function checkExpression(expression:ts.Expression):void {
+    switch (expression.kind) {
+        case ts.SyntaxKind.NewExpression:
+
+            break;
     }
 }
