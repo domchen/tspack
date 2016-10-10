@@ -80,14 +80,25 @@ function visitFile(sourceFile:ts.SourceFile):void {
     let statements = sourceFile.statements;
     let length = statements.length;
     for (let i = 0; i < length; i++) {
-        visitStatement(statements[i]);
+        let statement = statements[i];
+        if (statement.flags & ts.NodeFlags.Ambient) { // has the 'declare' keyword
+            continue;
+        }
+        if (statement.kind === ts.SyntaxKind.ExpressionStatement) {
+            let expression = <ts.ExpressionStatement>statement;
+            checkExpression(expression.expression);
+        } else if (statement.kind === ts.SyntaxKind.ImportEqualsDeclaration) {
+            checkImport(<ts.ImportEqualsDeclaration>statement);
+        } else {
+            visitStatement(statements[i]);
+        }
     }
 }
 
 function visitStatement(statement:ts.Statement):void {
     switch (statement.kind) {
         case ts.SyntaxKind.ClassDeclaration:
-            checkSuperClass(<ts.ClassDeclaration>statement);
+            checkInheriting(<ts.ClassDeclaration>statement);
             checkStaticMember(<ts.ClassDeclaration>statement);
             break;
         case ts.SyntaxKind.VariableStatement:
@@ -96,13 +107,6 @@ function visitStatement(statement:ts.Statement):void {
                 checkExpression(declaration.initializer);
             });
             break;
-        case ts.SyntaxKind.ExpressionStatement:
-            let expression = <ts.ExpressionStatement>statement;
-            checkExpression(expression.expression);
-            break;
-        case ts.SyntaxKind.ImportEqualsDeclaration:
-            checkImport(<ts.ImportEqualsDeclaration>statement);
-            break;
         case ts.SyntaxKind.ModuleDeclaration:
             visitModule(<ts.ModuleDeclaration>statement);
             break;
@@ -110,9 +114,6 @@ function visitStatement(statement:ts.Statement):void {
 }
 
 function visitModule(node:ts.ModuleDeclaration):void {
-    if (node.flags & ts.NodeFlags.Ambient) {
-        return;
-    }
     if (node.body.kind == ts.SyntaxKind.ModuleDeclaration) {
         visitModule(<ts.ModuleDeclaration>node.body);
         return;
@@ -120,14 +121,18 @@ function visitModule(node:ts.ModuleDeclaration):void {
     let statements = (<ts.ModuleBlock>node.body).statements;
     let length = statements.length;
     for (let i = 0; i < length; i++) {
-        visitStatement(statements[i]);
+        let statement = statements[i];
+        if (statement.flags & ts.NodeFlags.Ambient) { // has the 'declare' keyword
+            continue;
+        }
+        visitStatement(statement);
     }
 }
 
 function checkImport(statement:ts.ImportEqualsDeclaration):void {
     let currentFileName = statement.getSourceFile().fileName;
     let importDeclaration = <ts.ImportEqualsDeclaration>statement;
-    if(importDeclaration.moduleReference.kind==ts.SyntaxKind.QualifiedName){
+    if (importDeclaration.moduleReference.kind == ts.SyntaxKind.QualifiedName) {
         let qualifiedName = <ts.QualifiedName>importDeclaration.moduleReference;
         let type = checker.getTypeAtLocation(qualifiedName);
         let declarations = type.symbol.getDeclarations();
@@ -142,7 +147,7 @@ function checkImport(statement:ts.ImportEqualsDeclaration):void {
 }
 
 
-function checkSuperClass(node:ts.ClassDeclaration):void {
+function checkInheriting(node:ts.ClassDeclaration):void {
     if (!node.heritageClauses) {
         return;
     }
@@ -197,5 +202,34 @@ function checkExpression(expression:ts.Expression):void {
         case ts.SyntaxKind.NewExpression:
 
             break;
+
     }
+
+    // ArrayLiteralExpression
+    // ObjectLiteralExpression
+    // PropertyAccessExpression
+    // ElementAccessExpression
+    // CallExpression
+    // NewExpression
+    // TaggedTemplateExpression
+    // TypeAssertionExpression
+    // ParenthesizedExpression
+    // FunctionExpression
+    // ArrowFunction
+    // DeleteExpression
+    // TypeOfExpression
+    // VoidExpression
+    // AwaitExpression
+    // PrefixUnaryExpression
+    // PostfixUnaryExpression
+    // BinaryExpression
+    // ConditionalExpression
+    // TemplateExpression
+    // YieldExpression
+    // SpreadElementExpression
+    // ClassExpression
+    // OmittedExpression
+    // ExpressionWithTypeArguments
+    // AsExpression
+    // NonNullExpression
 }

@@ -46,13 +46,26 @@ function visitFile(sourceFile) {
     var statements = sourceFile.statements;
     var length = statements.length;
     for (var i = 0; i < length; i++) {
-        visitStatement(statements[i]);
+        var statement = statements[i];
+        if (statement.flags & ts.NodeFlags.Ambient) {
+            continue;
+        }
+        if (statement.kind === ts.SyntaxKind.ExpressionStatement) {
+            var expression = statement;
+            checkExpression(expression.expression);
+        }
+        else if (statement.kind === ts.SyntaxKind.ImportEqualsDeclaration) {
+            checkImport(statement);
+        }
+        else {
+            visitStatement(statements[i]);
+        }
     }
 }
 function visitStatement(statement) {
     switch (statement.kind) {
         case ts.SyntaxKind.ClassDeclaration:
-            checkSuperClass(statement);
+            checkInheriting(statement);
             checkStaticMember(statement);
             break;
         case ts.SyntaxKind.VariableStatement:
@@ -61,22 +74,12 @@ function visitStatement(statement) {
                 checkExpression(declaration.initializer);
             });
             break;
-        case ts.SyntaxKind.ExpressionStatement:
-            var expression = statement;
-            checkExpression(expression.expression);
-            break;
-        case ts.SyntaxKind.ImportEqualsDeclaration:
-            checkImport(statement);
-            break;
         case ts.SyntaxKind.ModuleDeclaration:
             visitModule(statement);
             break;
     }
 }
 function visitModule(node) {
-    if (node.flags & ts.NodeFlags.Ambient) {
-        return;
-    }
     if (node.body.kind == ts.SyntaxKind.ModuleDeclaration) {
         visitModule(node.body);
         return;
@@ -84,7 +87,11 @@ function visitModule(node) {
     var statements = node.body.statements;
     var length = statements.length;
     for (var i = 0; i < length; i++) {
-        visitStatement(statements[i]);
+        var statement = statements[i];
+        if (statement.flags & ts.NodeFlags.Ambient) {
+            continue;
+        }
+        visitStatement(statement);
     }
 }
 function checkImport(statement) {
@@ -103,7 +110,7 @@ function checkImport(statement) {
         });
     }
 }
-function checkSuperClass(node) {
+function checkInheriting(node) {
     if (!node.heritageClauses) {
         return;
     }
