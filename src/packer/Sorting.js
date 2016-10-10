@@ -101,7 +101,7 @@ function visitModule(node) {
 }
 function checkDependencyAtLocation(node) {
     var type = checker.getTypeAtLocation(node);
-    if (!type || type.flags & ts.TypeFlags.Interface) {
+    if (!type || !type.symbol || type.flags & ts.TypeFlags.Interface) {
         return;
     }
     var sourceFile = type.symbol.valueDeclaration.getSourceFile();
@@ -151,6 +151,9 @@ function checkStaticMember(node) {
     }
 }
 function checkExpression(expression) {
+    if (!expression) {
+        return;
+    }
     switch (expression.kind) {
         case ts.SyntaxKind.NewExpression:
             checkNewExpression(expression);
@@ -202,7 +205,7 @@ function checkCallExpression(callExpression) {
         case ts.SyntaxKind.PropertyAccessExpression:
         case ts.SyntaxKind.Identifier:
             var type = checker.getTypeAtLocation(expression);
-            if (!type || type.flags & ts.TypeFlags.Interface) {
+            if (!type || !type.symbol || type.flags & ts.TypeFlags.Interface) {
                 return;
             }
             var declaration = type.symbol.valueDeclaration;
@@ -220,7 +223,7 @@ function checkCallExpression(callExpression) {
 }
 function checkNewExpression(expression) {
     var type = checker.getTypeAtLocation(expression);
-    if (!type || type.flags & ts.TypeFlags.Interface) {
+    if (!type || !type.symbol || type.flags & ts.TypeFlags.Interface) {
         return;
     }
     var declaration = type.symbol.valueDeclaration;

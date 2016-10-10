@@ -142,7 +142,7 @@ function visitModule(node:ts.ModuleDeclaration):void {
 
 function checkDependencyAtLocation(node:ts.Node):void {
     let type = checker.getTypeAtLocation(node);
-    if (!type || type.flags & ts.TypeFlags.Interface) {
+    if (!type || !type.symbol || type.flags & ts.TypeFlags.Interface) {
         return;
     }
     let sourceFile = type.symbol.valueDeclaration.getSourceFile();
@@ -193,6 +193,9 @@ function checkStaticMember(node:ts.ClassDeclaration):void {
 }
 
 function checkExpression(expression:ts.Expression):void {
+    if (!expression) {
+        return;
+    }
     switch (expression.kind) {
         case ts.SyntaxKind.NewExpression:
             checkNewExpression(expression);
@@ -264,7 +267,7 @@ function checkCallExpression(callExpression:ts.CallExpression):void {
         case ts.SyntaxKind.PropertyAccessExpression:
         case ts.SyntaxKind.Identifier:
             let type = checker.getTypeAtLocation(expression);
-            if (!type || type.flags & ts.TypeFlags.Interface) {
+            if (!type || !type.symbol || type.flags & ts.TypeFlags.Interface) {
                 return;
             }
             let declaration = type.symbol.valueDeclaration;
@@ -284,7 +287,7 @@ function checkCallExpression(callExpression:ts.CallExpression):void {
 
 function checkNewExpression(expression:ts.Expression):void {
     let type = checker.getTypeAtLocation(expression);
-    if (!type || type.flags & ts.TypeFlags.Interface) {
+    if (!type || !type.symbol || type.flags & ts.TypeFlags.Interface) {
         return;
     }
     let declaration = type.symbol.valueDeclaration;

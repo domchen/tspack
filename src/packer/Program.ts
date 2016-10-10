@@ -119,8 +119,8 @@ function formatModules(moduleConfigs:tspack.ModuleConfig[], packerOptions:tspack
         tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(moduleConfig=> {
+        moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
         if (isArray(moduleConfig.dependencies)) {
-            moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
             let dependencies = moduleConfig.dependencies;
             moduleConfig.dependentModules = [];
             for (let i = 0; i < dependencies.length; i++) {

@@ -86,8 +86,8 @@ function formatModules(moduleConfigs, packerOptions, compilerOptions) {
         tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(function (moduleConfig) {
+        moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
         if (isArray(moduleConfig.dependencies)) {
-            moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
             var dependencies = moduleConfig.dependencies;
             moduleConfig.dependentModules = [];
             for (var i = 0; i < dependencies.length; i++) {
