@@ -101,7 +101,7 @@ function visitModule(node) {
 }
 function checkDependencyAtLocation(node) {
     var type = checker.getTypeAtLocation(node);
-    if (type.flags & ts.TypeFlags.Interface) {
+    if (!type || type.flags & ts.TypeFlags.Interface) {
         return;
     }
     var sourceFile = type.symbol.valueDeclaration.getSourceFile();
@@ -144,19 +144,131 @@ function checkStaticMember(node) {
         if (!(member.flags & ts.NodeFlags.Static)) {
             continue;
         }
-        switch (member.kind) {
-            case ts.SyntaxKind.PropertyDeclaration:
-                var property = member;
-                checkExpression(property.initializer);
-                break;
+        if (member.kind == ts.SyntaxKind.PropertyDeclaration) {
+            var property = member;
+            checkExpression(property.initializer);
         }
     }
 }
 function checkExpression(expression) {
     switch (expression.kind) {
         case ts.SyntaxKind.NewExpression:
-            var newExpression = expression;
+            checkNewExpression(expression);
             break;
+        case ts.SyntaxKind.CallExpression:
+            checkCallExpression(expression);
+            break;
+        case ts.SyntaxKind.Identifier:
+        case ts.SyntaxKind.PropertyAccessExpression:
+            checkDependencyAtLocation(expression);
+            break;
+        case ts.SyntaxKind.ArrayLiteralExpression:
+            var arrayLiteral = expression;
+            arrayLiteral.elements.forEach(checkExpression);
+            break;
+        case ts.SyntaxKind.TemplateExpression:
+            var template = expression;
+            template.templateSpans.forEach(function (span) {
+                checkExpression(span.expression);
+            });
+            break;
+        case ts.SyntaxKind.ParenthesizedExpression:
+            var parenthesized = expression;
+            checkExpression(parenthesized.expression);
+            break;
+        case ts.SyntaxKind.BinaryExpression:
+            var binary = expression;
+            checkExpression(binary.left);
+            checkExpression(binary.right);
+            break;
+        case ts.SyntaxKind.PostfixUnaryExpression:
+        case ts.SyntaxKind.PrefixUnaryExpression:
+            checkExpression(expression.operand);
+            break;
+        case ts.SyntaxKind.DeleteExpression:
+            checkExpression(expression.expression);
+    }
+}
+function checkCallExpression(callExpression) {
+    callExpression.arguments.forEach(function (argument) {
+        checkExpression(argument);
+    });
+    var expression = callExpression.expression;
+    switch (expression.kind) {
+        case ts.SyntaxKind.FunctionExpression:
+            var functionExpression = expression;
+            checkFunctionBody(functionExpression.body);
+            break;
+        case ts.SyntaxKind.PropertyAccessExpression:
+        case ts.SyntaxKind.Identifier:
+            var type = checker.getTypeAtLocation(expression);
+            if (!type || type.flags & ts.TypeFlags.Interface) {
+                return;
+            }
+            var declaration = type.symbol.valueDeclaration;
+            var sourceFile = declaration.getSourceFile();
+            if (sourceFile.isDeclarationFile) {
+                return;
+            }
+            addDependency(expression.getSourceFile().fileName, sourceFile.fileName);
+            if (declaration.kind === ts.SyntaxKind.FunctionDeclaration ||
+                declaration.kind === ts.SyntaxKind.MethodDeclaration) {
+                checkFunctionBody(declaration.body);
+            }
+            break;
+    }
+}
+function checkNewExpression(expression) {
+    var type = checker.getTypeAtLocation(expression);
+    if (!type || type.flags & ts.TypeFlags.Interface) {
+        return;
+    }
+    var declaration = type.symbol.valueDeclaration;
+    var sourceFile = declaration.getSourceFile();
+    if (sourceFile.isDeclarationFile) {
+        return;
+    }
+    addDependency(expression.getSourceFile().fileName, sourceFile.fileName);
+    if (declaration.kind === ts.SyntaxKind.ClassDeclaration) {
+        checkClassInstantiation(declaration);
+    }
+}
+function checkClassInstantiation(node) {
+    var members = node.members;
+    if (!members) {
+        return;
+    }
+    for (var _i = 0, members_2 = members; _i < members_2.length; _i++) {
+        var member = members_2[_i];
+        if (member.flags & ts.NodeFlags.Static) {
+            continue;
+        }
+        if (member.kind === ts.SyntaxKind.PropertyDeclaration) {
+            var property = member;
+            checkExpression(property.initializer);
+        }
+        else if (member.kind === ts.SyntaxKind.Constructor) {
+            var constructor = member;
+            checkFunctionBody(constructor.body);
+        }
+    }
+}
+function checkFunctionBody(body) {
+    ts.forEachChild(body, visit);
+    function visit(node) {
+        if (node.kind === ts.SyntaxKind.VariableStatement) {
+            var variable = node;
+            variable.declarationList.declarations.forEach(function (declaration) {
+                checkExpression(declaration.initializer);
+            });
+        }
+        else if (node.kind === ts.SyntaxKind.ExpressionStatement) {
+            var expression = node;
+            checkExpression(expression.expression);
+        }
+        else {
+            ts.forEachChild(node, visit);
+        }
     }
 }
 function sortOnDependency() {

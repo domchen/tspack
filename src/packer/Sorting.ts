@@ -142,7 +142,7 @@ function visitModule(node:ts.ModuleDeclaration):void {
 
 function checkDependencyAtLocation(node:ts.Node):void {
     let type = checker.getTypeAtLocation(node);
-    if (type.flags & ts.TypeFlags.Interface) {
+    if (!type || type.flags & ts.TypeFlags.Interface) {
         return;
     }
     let sourceFile = type.symbol.valueDeclaration.getSourceFile();
@@ -185,11 +185,9 @@ function checkStaticMember(node:ts.ClassDeclaration):void {
         if (!(member.flags & ts.NodeFlags.Static)) {
             continue;
         }
-        switch (member.kind) {
-            case ts.SyntaxKind.PropertyDeclaration:
-                let property = <ts.PropertyDeclaration>member;
-                checkExpression(property.initializer);
-                break;
+        if (member.kind == ts.SyntaxKind.PropertyDeclaration) {
+            let property = <ts.PropertyDeclaration>member;
+            checkExpression(property.initializer);
         }
     }
 }
@@ -197,32 +195,53 @@ function checkStaticMember(node:ts.ClassDeclaration):void {
 function checkExpression(expression:ts.Expression):void {
     switch (expression.kind) {
         case ts.SyntaxKind.NewExpression:
-            let newExpression = <ts.NewExpression>expression;
-
+            checkNewExpression(expression);
             break;
+        case ts.SyntaxKind.CallExpression:
+            checkCallExpression(<ts.CallExpression>expression);
+            break;
+        case ts.SyntaxKind.Identifier:
+        case ts.SyntaxKind.PropertyAccessExpression:
+            checkDependencyAtLocation(expression);
+            break;
+        case ts.SyntaxKind.ArrayLiteralExpression:
+            let arrayLiteral = <ts.ArrayLiteralExpression>expression;
+            arrayLiteral.elements.forEach(checkExpression);
+            break;
+        case ts.SyntaxKind.TemplateExpression:
+            let template = <ts.TemplateExpression>expression;
+            template.templateSpans.forEach(span=> {
+                checkExpression(span.expression);
+            });
+            break;
+        case ts.SyntaxKind.ParenthesizedExpression:
+            let parenthesized = <ts.ParenthesizedExpression>expression;
+            checkExpression(parenthesized.expression);
+            break;
+        case ts.SyntaxKind.BinaryExpression:
+            let binary = <ts.BinaryExpression>expression;
+            checkExpression(binary.left);
+            checkExpression(binary.right);
+            break;
+        case ts.SyntaxKind.PostfixUnaryExpression:
+        case ts.SyntaxKind.PrefixUnaryExpression:
+            checkExpression((<ts.PrefixUnaryExpression>expression).operand);
+            break;
+        case ts.SyntaxKind.DeleteExpression:
+            checkExpression((<ts.DeleteExpression>expression).expression);
 
     }
 
-    // ArrayLiteralExpression
     // ObjectLiteralExpression
-    // PropertyAccessExpression
     // ElementAccessExpression
-    // CallExpression
-    // NewExpression
     // TaggedTemplateExpression
     // TypeAssertionExpression
-    // ParenthesizedExpression
     // FunctionExpression
     // ArrowFunction
-    // DeleteExpression
     // TypeOfExpression
     // VoidExpression
     // AwaitExpression
-    // PrefixUnaryExpression
-    // PostfixUnaryExpression
-    // BinaryExpression
     // ConditionalExpression
-    // TemplateExpression
     // YieldExpression
     // SpreadElementExpression
     // ClassExpression
@@ -230,6 +249,93 @@ function checkExpression(expression:ts.Expression):void {
     // ExpressionWithTypeArguments
     // AsExpression
     // NonNullExpression
+}
+
+function checkCallExpression(callExpression:ts.CallExpression):void {
+    callExpression.arguments.forEach(argument=> {
+        checkExpression(argument);
+    });
+    let expression = callExpression.expression;
+    switch (expression.kind) {
+        case ts.SyntaxKind.FunctionExpression:
+            let functionExpression = <ts.FunctionExpression>expression;
+            checkFunctionBody(functionExpression.body);
+            break;
+        case ts.SyntaxKind.PropertyAccessExpression:
+        case ts.SyntaxKind.Identifier:
+            let type = checker.getTypeAtLocation(expression);
+            if (!type || type.flags & ts.TypeFlags.Interface) {
+                return;
+            }
+            let declaration = type.symbol.valueDeclaration;
+            let sourceFile = declaration.getSourceFile();
+            if (sourceFile.isDeclarationFile) {
+                return;
+            }
+            addDependency(expression.getSourceFile().fileName, sourceFile.fileName);
+            if (declaration.kind === ts.SyntaxKind.FunctionDeclaration ||
+                declaration.kind === ts.SyntaxKind.MethodDeclaration) {
+                checkFunctionBody((<ts.FunctionDeclaration>declaration).body);
+            }
+            break;
+    }
+
+}
+
+function checkNewExpression(expression:ts.Expression):void {
+    let type = checker.getTypeAtLocation(expression);
+    if (!type || type.flags & ts.TypeFlags.Interface) {
+        return;
+    }
+    let declaration = type.symbol.valueDeclaration;
+    let sourceFile = declaration.getSourceFile();
+    if (sourceFile.isDeclarationFile) {
+        return;
+    }
+    addDependency(expression.getSourceFile().fileName, sourceFile.fileName);
+    if (declaration.kind === ts.SyntaxKind.ClassDeclaration) {
+        checkClassInstantiation(<ts.ClassDeclaration>declaration);
+    }
+}
+
+function checkClassInstantiation(node:ts.ClassDeclaration):void {
+    let members = node.members;
+    if (!members) {
+        return;
+    }
+    for (let member of members) {
+        if (member.flags & ts.NodeFlags.Static) {
+            continue;
+        }
+        if (member.kind === ts.SyntaxKind.PropertyDeclaration) {
+            let property = <ts.PropertyDeclaration>member;
+            checkExpression(property.initializer);
+        }
+        else if (member.kind === ts.SyntaxKind.Constructor) {
+            let constructor = <ts.ConstructorDeclaration>member;
+            checkFunctionBody(constructor.body);
+        }
+    }
+}
+
+function checkFunctionBody(body:ts.FunctionBody):void {
+    ts.forEachChild(body, visit);
+    function visit(node:ts.Node) {
+        if (node.kind === ts.SyntaxKind.VariableStatement) {
+            let variable = <ts.VariableStatement>node;
+            variable.declarationList.declarations.forEach(declaration=> {
+                checkExpression(declaration.initializer);
+            });
+        }
+        else if (node.kind === ts.SyntaxKind.ExpressionStatement) {
+            let expression = <ts.ExpressionStatement>node;
+            checkExpression(expression.expression);
+        }
+        else {
+            ts.forEachChild(node, visit);
+        }
+
+    }
 }
 
 
