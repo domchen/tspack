@@ -120,8 +120,9 @@ function emitModule(moduleConfig, packerOptions, compilerOptions) {
     }
     var sortResult = Sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker());
     if (sortResult.circularReferences.length > 0) {
-        ts.sys.write("Circular reference error at :" + ts.sys.newLine);
-        ts.sys.write("    " + sortResult.circularReferences.join(ts.sys.newLine + "    "));
+        ts.sys.write("error: circular reference at" + ts.sys.newLine);
+        ts.sys.write("    " + sortResult.circularReferences.join(ts.sys.newLine + "    ") +
+            ts.sys.newLine + "    ..." + ts.sys.newLine);
         ts.sys.exit(1);
         return;
     }

@@ -254,8 +254,8 @@ function sortOnDependency():Result {
             continue;
         }
         let path = sourceFile.fileName;
-        let references = [path];
-        if (!updatePathWeight(path, 0, references)) {
+        let references = updatePathWeight(path, 0, [path]);
+        if (references) {
             result.circularReferences = references;
             break;
         }
@@ -269,7 +269,7 @@ function sortOnDependency():Result {
     return result;
 }
 
-function updatePathWeight(path:string, weight:number, references:string[]):boolean {
+function updatePathWeight(path:string, weight:number, references:string[]):string[] {
     if (pathWeightMap[path] === undefined) {
         pathWeightMap[path] = weight;
     }
@@ -278,22 +278,22 @@ function updatePathWeight(path:string, weight:number, references:string[]):boole
             pathWeightMap[path] = weight;
         }
         else {
-            return true;
+            return null;
         }
     }
     let list = dependencyMap[path];
     if (!list) {
-        return true;
+        return null;
     }
     for (let parentPath of list) {
         if (references.indexOf(parentPath) != -1) {
             references.push(parentPath);
-            return false;
+            return references;
         }
-        let success = updatePathWeight(parentPath, weight + 1, references);
-        if (!success) {
-            return false;
+        let result = updatePathWeight(parentPath, weight + 1, references.concat(parentPath));
+        if (result) {
+            return result;
         }
     }
-    return true;
+    return null;
 }

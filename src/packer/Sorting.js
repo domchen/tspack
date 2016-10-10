@@ -181,8 +181,8 @@ function sortOnDependency() {
             continue;
         }
         var path = sourceFile.fileName;
-        var references = [path];
-        if (!updatePathWeight(path, 0, references)) {
+        var references = updatePathWeight(path, 0, [path]);
+        if (references) {
             result.circularReferences = references;
             break;
         }
@@ -204,23 +204,23 @@ function updatePathWeight(path, weight, references) {
             pathWeightMap[path] = weight;
         }
         else {
-            return true;
+            return null;
         }
     }
     var list = dependencyMap[path];
     if (!list) {
-        return true;
+        return null;
     }
     for (var _i = 0, list_1 = list; _i < list_1.length; _i++) {
         var parentPath = list_1[_i];
         if (references.indexOf(parentPath) != -1) {
             references.push(parentPath);
-            return false;
+            return references;
         }
-        var success = updatePathWeight(parentPath, weight + 1, references);
-        if (!success) {
-            return false;
+        var result = updatePathWeight(parentPath, weight + 1, references.concat(parentPath));
+        if (result) {
+            return result;
         }
     }
-    return true;
+    return null;
 }
