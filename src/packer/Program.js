@@ -35,6 +35,7 @@ function run(args) {
     var packerOptions = convertPackerOptionsFromJson(configObject["packerOptions"], baseDir);
     var modules = configObject["modules"];
     formatModules(modules, packerOptions, compilerOptions);
+    sortOnDependency(modules);
     modules.forEach(function (moduleConfig) {
         emitModule(moduleConfig, packerOptions, compilerOptions);
     });
@@ -98,7 +99,7 @@ function formatModules(moduleConfigs, packerOptions, compilerOptions) {
                 }
                 moduleConfig.dependentModules.push(config);
                 if (!config.declarationFileName) {
-                    var outFile = config.outFile;
+                    var outFile = getModuleFileName(config, packerOptions);;
                     if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
                         outFile = outFile.substr(0, outFile.length - 3);
                     }
@@ -179,5 +180,57 @@ function removeDeclarations(modules) {
             }
         }
     });
+}
+function sortOnDependency(modules) {
+    var dependencyMap = {};
+    for (var _i = 0, modules_1 = modules; _i < modules_1.length; _i++) {
+        var module_1 = modules_1[_i];
+        dependencyMap[module_1.name] = module_1.dependencies;
+    }
+    var moduleWeightMap = {};
+    for (var _a = 0, modules_2 = modules; _a < modules_2.length; _a++) {
+        var module_2 = modules_2[_a];
+        var moduleName = module_2.name;
+        var references = updateModuleWeight(moduleName, 0, moduleWeightMap, dependencyMap, [moduleName]);
+        if (references) {
+            ts.sys.write("error tspack.json : circular reference of module at" + ts.sys.newLine);
+            ts.sys.write("    " + references.join(ts.sys.newLine + "    ") +
+                ts.sys.newLine + "    ..." + ts.sys.newLine);
+            ts.sys.exit(1);
+            return;
+        }
+    }
+    modules.sort(function (a, b) {
+        return moduleWeightMap[b.name] - moduleWeightMap[a.name];
+    });
+}
+function updateModuleWeight(moduleName, weight, moduleWeightMap, dependencyMap, references) {
+    if (moduleWeightMap[moduleName] === undefined) {
+        moduleWeightMap[moduleName] = weight;
+    }
+    else {
+        if (moduleWeightMap[moduleName] < weight) {
+            moduleWeightMap[moduleName] = weight;
+        }
+        else {
+            return null;
+        }
+    }
+    var list = dependencyMap[moduleName];
+    if (!list) {
+        return null;
+    }
+    for (var _i = 0, list_1 = list; _i < list_1.length; _i++) {
+        var parentPath = list_1[_i];
+        if (references.indexOf(parentPath) != -1) {
+            references.push(parentPath);
+            return references;
+        }
+        var result = updateModuleWeight(parentPath, weight + 1, moduleWeightMap, dependencyMap, references.concat(parentPath));
+        if (result) {
+            return result;
+        }
+    }
+    return null;
 }
 run(ts.sys.args);

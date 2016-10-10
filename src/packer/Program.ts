@@ -64,6 +64,7 @@ function run(args:string[]):void {
     let packerOptions = convertPackerOptionsFromJson(configObject["packerOptions"], baseDir);
     let modules:tspack.ModuleConfig[] = configObject["modules"];
     formatModules(modules, packerOptions, compilerOptions);
+    sortOnDependency(modules);
     modules.forEach(moduleConfig=> {
         emitModule(moduleConfig, packerOptions, compilerOptions);
     });
@@ -222,5 +223,56 @@ function removeDeclarations(modules:tspack.ModuleConfig[]):void {
     })
 }
 
+
+function sortOnDependency(modules:tspack.ModuleConfig[]):void {
+    let dependencyMap:{[key:string]:string[]} = {};
+    for (let module of modules) {
+        dependencyMap[module.name] = module.dependencies;
+    }
+    let moduleWeightMap:{[key:string]:number} = {};
+    for (let module of modules) {
+        let moduleName = module.name;
+        let references = updateModuleWeight(moduleName, 0, moduleWeightMap, dependencyMap, [moduleName]);
+        if (references) {
+            ts.sys.write("error tspack.json : circular reference of module at" + ts.sys.newLine);
+            ts.sys.write("    " + references.join(ts.sys.newLine + "    ") +
+                ts.sys.newLine + "    ..." + ts.sys.newLine);
+            ts.sys.exit(1);
+            return;
+        }
+    }
+    modules.sort(function (a:tspack.ModuleConfig, b:tspack.ModuleConfig):number {
+        return moduleWeightMap[b.name] - moduleWeightMap[a.name];
+    });
+}
+
+function updateModuleWeight(moduleName:string, weight:number, moduleWeightMap:any, dependencyMap:any, references:string[]):string[] {
+    if (moduleWeightMap[moduleName] === undefined) {
+        moduleWeightMap[moduleName] = weight;
+    }
+    else {
+        if (moduleWeightMap[moduleName] < weight) {
+            moduleWeightMap[moduleName] = weight;
+        }
+        else {
+            return null;
+        }
+    }
+    let list = dependencyMap[moduleName];
+    if (!list) {
+        return null;
+    }
+    for (let parentPath of list) {
+        if (references.indexOf(parentPath) != -1) {
+            references.push(parentPath);
+            return references;
+        }
+        let result = updateModuleWeight(parentPath, weight + 1, moduleWeightMap, dependencyMap, references.concat(parentPath));
+        if (result) {
+            return result;
+        }
+    }
+    return null;
+}
 
 run(ts.sys.args);
