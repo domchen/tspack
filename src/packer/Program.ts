@@ -152,15 +152,24 @@ function emitModule(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.Packe
         ts.sys.exit(1);
         return;
     }
+    let sortResult = Sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker())
+    if (sortResult.circularReferences.length > 0) {
+        ts.sys.write("Circular reference error at :" + ts.sys.newLine);
+        ts.sys.write("    " + sortResult.circularReferences.join(ts.sys.newLine + "    "));
+        ts.sys.exit(1);
+        return;
+    }
+    // apply the sorting result.
     let sourceFiles = program.getSourceFiles();
-    fileNames = program.getRootFileNames();
-    let sortedFiles = Sorting.sortFiles(sourceFiles, program.getTypeChecker());
+    let rootFileNames = program.getRootFileNames();
     sourceFiles.length = 0;
-    fileNames.length = 0;
-    sortedFiles.forEach(sourceFile=> {
+    rootFileNames.length = 0;
+    sortResult.sortedFiles.forEach(sourceFile=> {
         sourceFiles.push(sourceFile);
-        fileNames.push(sourceFile.fileName);
+        rootFileNames.push(sourceFile.fileName);
     });
+    console.log("module "+moduleConfig.name+" :\n");
+    console.log(rootFileNames.join("\n")+"\n");
     let emitResult = program.emit();
     if (emitResult.diagnostics.length > 0) {
         emitResult.diagnostics.forEach(diagnostic => {

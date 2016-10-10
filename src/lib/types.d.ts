@@ -46,4 +46,5 @@ declare namespace tspack {
         declarationFileName?:string,
         dependentModules?:ModuleConfig[]
     }
+
 }

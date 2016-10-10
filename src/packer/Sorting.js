@@ -3,16 +3,16 @@ var ts = require("typescript");
 var checker;
 var files;
 var dependencyMap;
+var pathWeightMap;
 function sortFiles(sourceFiles, typeChecker) {
-    sourceFiles = sourceFiles.concat();
-    files = sourceFiles;
+    files = sourceFiles.concat();
     checker = typeChecker;
-    dependencyMap = createMap();
     buildDependencyMap();
+    var result = sortOnDependency();
     files = null;
     checker = null;
     dependencyMap = null;
-    return sourceFiles;
+    return result;
 }
 exports.sortFiles = sortFiles;
 function createMap() {
@@ -34,6 +34,7 @@ function addDependency(file, dependent) {
     }
 }
 function buildDependencyMap() {
+    dependencyMap = createMap();
     for (var i = 0; i < files.length; i++) {
         var sourceFile = files[i];
         if (sourceFile.isDeclarationFile) {
@@ -100,6 +101,9 @@ function checkImport(statement) {
     if (importDeclaration.moduleReference.kind == ts.SyntaxKind.QualifiedName) {
         var qualifiedName = importDeclaration.moduleReference;
         var type = checker.getTypeAtLocation(qualifiedName);
+        if (type.flags & ts.TypeFlags.Interface) {
+            return;
+        }
         var declarations = type.symbol.getDeclarations();
         declarations.forEach(function (declaration) {
             var file = declaration.getSourceFile();
@@ -165,4 +169,58 @@ function checkExpression(expression) {
         case ts.SyntaxKind.NewExpression:
             break;
     }
+}
+function sortOnDependency() {
+    var result = {};
+    result.sortedFiles = files;
+    result.circularReferences = [];
+    pathWeightMap = createMap();
+    for (var i = 0; i < files.length; i++) {
+        var sourceFile = files[i];
+        if (sourceFile.isDeclarationFile) {
+            continue;
+        }
+        var path = sourceFile.fileName;
+        var references = [path];
+        if (!updatePathWeight(path, 0, references)) {
+            result.circularReferences = references;
+            break;
+        }
+    }
+    if (result.circularReferences.length === 0) {
+        files.sort(function (a, b) {
+            return pathWeightMap[b.fileName] - pathWeightMap[a.fileName];
+        });
+    }
+    pathWeightMap = null;
+    return result;
+}
+function updatePathWeight(path, weight, references) {
+    if (pathWeightMap[path] === undefined) {
+        pathWeightMap[path] = weight;
+    }
+    else {
+        if (pathWeightMap[path] < weight) {
+            pathWeightMap[path] = weight;
+        }
+        else {
+            return true;
+        }
+    }
+    var list = dependencyMap[path];
+    if (!list) {
+        return true;
+    }
+    for (var _i = 0, list_1 = list; _i < list_1.length; _i++) {
+        var parentPath = list_1[_i];
+        if (references.indexOf(parentPath) != -1) {
+            references.push(parentPath);
+            return false;
+        }
+        var success = updatePathWeight(parentPath, weight + 1, references);
+        if (!success) {
+            return false;
+        }
+    }
+    return true;
 }

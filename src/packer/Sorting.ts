@@ -32,21 +32,25 @@ import * as ts from "typescript";
 let checker:ts.TypeChecker;
 let files:ts.SourceFile[];
 let dependencyMap:{[key:string]:string[]};
+let pathWeightMap:{[key:string]:number};
 
-export function sortFiles(sourceFiles:ts.SourceFile[], typeChecker:ts.TypeChecker):ts.SourceFile[] {
-    sourceFiles = sourceFiles.concat();
-    files = sourceFiles;
+export interface Result {
+    sortedFiles:ts.SourceFile[],
+    circularReferences:string[]
+}
+
+export function sortFiles(sourceFiles:ts.SourceFile[], typeChecker:ts.TypeChecker):Result {
+    files = sourceFiles.concat();
     checker = typeChecker;
-    dependencyMap = createMap();
     buildDependencyMap();
-
+    let result = sortOnDependency();
     files = null;
     checker = null;
     dependencyMap = null;
-    return sourceFiles;
+    return result;
 }
 
-function createMap():{[key:string]:string[]} {
+function createMap():any {
     let obj:any = Object.create(null);
     obj.__v8__ = undefined;
     delete obj.__v8__;
@@ -67,6 +71,7 @@ function addDependency(file:string, dependent:string):void {
 }
 
 function buildDependencyMap():void {
+    dependencyMap = createMap();
     for (let i = 0; i < files.length; i++) {
         let sourceFile = files[i];
         if (sourceFile.isDeclarationFile) {
@@ -135,6 +140,9 @@ function checkImport(statement:ts.ImportEqualsDeclaration):void {
     if (importDeclaration.moduleReference.kind == ts.SyntaxKind.QualifiedName) {
         let qualifiedName = <ts.QualifiedName>importDeclaration.moduleReference;
         let type = checker.getTypeAtLocation(qualifiedName);
+        if (type.flags & ts.TypeFlags.Interface) {
+            return;
+        }
         let declarations = type.symbol.getDeclarations();
         declarations.forEach(declaration=> {
             let file = declaration.getSourceFile();
@@ -232,4 +240,60 @@ function checkExpression(expression:ts.Expression):void {
     // ExpressionWithTypeArguments
     // AsExpression
     // NonNullExpression
+}
+
+
+function sortOnDependency():Result {
+    let result:Result = <any>{};
+    result.sortedFiles = files;
+    result.circularReferences = [];
+    pathWeightMap = createMap();
+    for (let i = 0; i < files.length; i++) {
+        let sourceFile = files[i];
+        if (sourceFile.isDeclarationFile) {
+            continue;
+        }
+        let path = sourceFile.fileName;
+        let references = [path];
+        if (!updatePathWeight(path, 0, references)) {
+            result.circularReferences = references;
+            break;
+        }
+    }
+    if (result.circularReferences.length === 0) {
+        files.sort(function (a:ts.SourceFile, b:ts.SourceFile):number {
+            return pathWeightMap[b.fileName] - pathWeightMap[a.fileName];
+        });
+    }
+    pathWeightMap = null;
+    return result;
+}
+
+function updatePathWeight(path:string, weight:number, references:string[]):boolean {
+    if (pathWeightMap[path] === undefined) {
+        pathWeightMap[path] = weight;
+    }
+    else {
+        if (pathWeightMap[path] < weight) {
+            pathWeightMap[path] = weight;
+        }
+        else {
+            return true;
+        }
+    }
+    let list = dependencyMap[path];
+    if (!list) {
+        return true;
+    }
+    for (let parentPath of list) {
+        if (references.indexOf(parentPath) != -1) {
+            references.push(parentPath);
+            return false;
+        }
+        let success = updatePathWeight(parentPath, weight + 1, references);
+        if (!success) {
+            return false;
+        }
+    }
+    return true;
 }
