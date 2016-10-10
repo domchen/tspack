@@ -59,11 +59,10 @@ function run(args:string[]):void {
         return;
     }
     let compilerOptions = optionResult.options;
-    compilerOptions.declaration = true;
     compilerOptions.module = ts.ModuleKind.None;
     let packerOptions = convertPackerOptionsFromJson(configObject["packerOptions"], baseDir);
     let modules:tspack.ModuleConfig[] = configObject["modules"];
-    formatDependencies(modules, packerOptions);
+    formatModules(modules, packerOptions, compilerOptions);
     modules.forEach(moduleConfig=> {
         emitModule(moduleConfig, packerOptions, compilerOptions);
     });
@@ -110,18 +109,18 @@ function convertPackerOptionsFromJson(json:any, baseDir:string):tspack.PackerOpt
     return options;
 }
 
-function formatDependencies(moduleConfigs:tspack.ModuleConfig[], packerOptions:tspack.PackerOptions):void {
+function formatModules(moduleConfigs:tspack.ModuleConfig[], packerOptions:tspack.PackerOptions,
+                       compilerOptions:ts.CompilerOptions):void {
     var tsdMap:{[key:string]:tspack.ModuleConfig} = {};
     moduleConfigs.forEach(moduleConfig=> {
-        let outFile = moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
-        if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
-            outFile = outFile.substr(0, outFile.length - 3);
+        if (moduleConfig.declaration === undefined) {
+            moduleConfig.declaration = !!compilerOptions.declaration;
         }
-        moduleConfig.declarationFileName = outFile + ".d.ts";
         tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(moduleConfig=> {
         if (isArray(moduleConfig.dependencies)) {
+            moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
             let dependencies = moduleConfig.dependencies;
             moduleConfig.dependentModules = [];
             for (let i = 0; i < dependencies.length; i++) {
@@ -131,6 +130,13 @@ function formatDependencies(moduleConfigs:tspack.ModuleConfig[], packerOptions:t
                     ts.sys.exit(1);
                 }
                 moduleConfig.dependentModules.push(config);
+                if (!config.declarationFileName) {
+                    let outFile = config.outFile;
+                    if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
+                        outFile = outFile.substr(0, outFile.length - 3);
+                    }
+                    config.declarationFileName = outFile + ".d.ts";
+                }
             }
         }
     });
@@ -142,45 +148,41 @@ function isArray(value:any):value is any[] {
 
 function emitModule(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.PackerOptions, compilerOptions:ts.CompilerOptions):void {
     compilerOptions.outFile = moduleConfig.outFile;
+    compilerOptions.declaration = moduleConfig.declaration || !!moduleConfig.declarationFileName;
     let fileNames = getFileNames(moduleConfig, packerOptions.projectDir);
     let program = ts.createProgram(fileNames, compilerOptions);
-    let diagnostics = ts.getPreEmitDiagnostics(program);
+
+    if (fileNames.length > 1) {
+        let sortResult = Sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker())
+        if (sortResult.circularReferences.length > 0) {
+            ts.sys.write("error: circular reference at" + ts.sys.newLine);
+            ts.sys.write("    " + sortResult.circularReferences.join(ts.sys.newLine + "    ") +
+                ts.sys.newLine + "    ..." + ts.sys.newLine);
+            ts.sys.exit(1);
+            return;
+        }
+        // apply the sorting result.
+        let sourceFiles = program.getSourceFiles();
+        let rootFileNames = program.getRootFileNames();
+        sourceFiles.length = 0;
+        rootFileNames.length = 0;
+        sortResult.sortedFiles.forEach(sourceFile=> {
+            sourceFiles.push(sourceFile);
+            rootFileNames.push(sourceFile.fileName);
+        });
+        console.log("module " + moduleConfig.name + " :\n");
+        console.log(rootFileNames.join("\n") + "\n");
+    }
+
+    let emitResult = program.emit();
+    let diagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
     if (diagnostics.length > 0) {
         diagnostics.forEach(diagnostic => {
             ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
         });
-        ts.sys.exit(1);
-        return;
-    }
-    let sortResult = Sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker())
-    if (sortResult.circularReferences.length > 0) {
-        ts.sys.write("error: circular reference at" + ts.sys.newLine);
-        ts.sys.write("    " + sortResult.circularReferences.join(ts.sys.newLine + "    ") +
-            ts.sys.newLine + "    ..." + ts.sys.newLine);
-        ts.sys.exit(1);
-        return;
-    }
-    // apply the sorting result.
-    let sourceFiles = program.getSourceFiles();
-    let rootFileNames = program.getRootFileNames();
-    sourceFiles.length = 0;
-    rootFileNames.length = 0;
-    sortResult.sortedFiles.forEach(sourceFile=> {
-        sourceFiles.push(sourceFile);
-        rootFileNames.push(sourceFile.fileName);
-    });
-    console.log("module " + moduleConfig.name + " :\n");
-    console.log(rootFileNames.join("\n") + "\n");
-    let emitResult = program.emit();
-    if (emitResult.diagnostics.length > 0) {
-        emitResult.diagnostics.forEach(diagnostic => {
-            ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
-        });
         let exitCode = emitResult.emitSkipped ? 1 : 0;
         ts.sys.exit(exitCode);
-        return;
     }
-
 }
 
 function getFileNames(moduleConfig:tspack.ModuleConfig, baseDir):string[] {
@@ -195,27 +197,27 @@ function getFileNames(moduleConfig:tspack.ModuleConfig, baseDir):string[] {
     }
     let fileNames = optionResult.fileNames;
     if (moduleConfig.dependentModules) {
+        let declarations:string[] = [];
         moduleConfig.dependentModules.forEach(config=> {
-            fileNames.push(config.declarationFileName);
+            declarations.push(config.declarationFileName);
         });
+        fileNames = declarations.concat(fileNames);
     }
     return fileNames;
 }
 
 function removeDeclarations(modules:tspack.ModuleConfig[]):void {
     modules.forEach(moduleConfig=> {
-        if (!moduleConfig.noEmitDeclaration) {
-            return;
-        }
-        let fileName = moduleConfig.declarationFileName;
-        if (ts.sys.fileExists(fileName)) {
-            try {
-                fs.unlinkSync(fileName);
+        if (!moduleConfig.declaration && moduleConfig.declarationFileName) {
+            let fileName = moduleConfig.declarationFileName;
+            if (ts.sys.fileExists(fileName)) {
+                try {
+                    fs.unlinkSync(fileName);
+                }
+                catch (e) {
+                }
             }
-            catch (e) {
-            }
         }
-
     })
 }
 

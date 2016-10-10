@@ -56,7 +56,11 @@ function visitFile(sourceFile) {
             checkExpression(expression.expression);
         }
         else if (statement.kind === ts.SyntaxKind.ImportEqualsDeclaration) {
-            checkImport(statement);
+            var importDeclaration = statement;
+            if (importDeclaration.moduleReference.kind == ts.SyntaxKind.QualifiedName) {
+                var qualifiedName = importDeclaration.moduleReference;
+                checkDependencyAtLocation(qualifiedName);
+            }
         }
         else {
             visitStatement(statements[i]);
@@ -95,24 +99,16 @@ function visitModule(node) {
         visitStatement(statement);
     }
 }
-function checkImport(statement) {
-    var currentFileName = statement.getSourceFile().fileName;
-    var importDeclaration = statement;
-    if (importDeclaration.moduleReference.kind == ts.SyntaxKind.QualifiedName) {
-        var qualifiedName = importDeclaration.moduleReference;
-        var type = checker.getTypeAtLocation(qualifiedName);
-        if (type.flags & ts.TypeFlags.Interface) {
-            return;
-        }
-        var declarations = type.symbol.getDeclarations();
-        declarations.forEach(function (declaration) {
-            var file = declaration.getSourceFile();
-            if (file.isDeclarationFile) {
-                return;
-            }
-            addDependency(currentFileName, file.fileName);
-        });
+function checkDependencyAtLocation(node) {
+    var type = checker.getTypeAtLocation(node);
+    if (type.flags & ts.TypeFlags.Interface) {
+        return;
     }
+    var sourceFile = type.symbol.valueDeclaration.getSourceFile();
+    if (sourceFile.isDeclarationFile) {
+        return;
+    }
+    addDependency(node.getSourceFile().fileName, sourceFile.fileName);
 }
 function checkInheriting(node) {
     if (!node.heritageClauses) {
@@ -135,15 +131,7 @@ function checkInheriting(node) {
     }
     var currentFileName = node.getSourceFile().fileName;
     superClasses.forEach(function (superClass) {
-        var type = checker.getTypeAtLocation(superClass);
-        var declarations = type.symbol.getDeclarations();
-        declarations.forEach(function (declaration) {
-            var file = declaration.getSourceFile();
-            if (file.isDeclarationFile) {
-                return;
-            }
-            addDependency(currentFileName, file.fileName);
-        });
+        checkDependencyAtLocation(superClass);
     });
 }
 function checkStaticMember(node) {
@@ -167,6 +155,7 @@ function checkStaticMember(node) {
 function checkExpression(expression) {
     switch (expression.kind) {
         case ts.SyntaxKind.NewExpression:
+            var newExpression = expression;
             break;
     }
 }

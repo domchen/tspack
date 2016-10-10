@@ -92,9 +92,15 @@ function visitFile(sourceFile:ts.SourceFile):void {
         if (statement.kind === ts.SyntaxKind.ExpressionStatement) {
             let expression = <ts.ExpressionStatement>statement;
             checkExpression(expression.expression);
-        } else if (statement.kind === ts.SyntaxKind.ImportEqualsDeclaration) {
-            checkImport(<ts.ImportEqualsDeclaration>statement);
-        } else {
+        }
+        else if (statement.kind === ts.SyntaxKind.ImportEqualsDeclaration) {
+            let importDeclaration = <ts.ImportEqualsDeclaration>statement;
+            if (importDeclaration.moduleReference.kind == ts.SyntaxKind.QualifiedName) {
+                let qualifiedName = <ts.QualifiedName>importDeclaration.moduleReference;
+                checkDependencyAtLocation(qualifiedName);
+            }
+        }
+        else {
             visitStatement(statements[i]);
         }
     }
@@ -134,26 +140,17 @@ function visitModule(node:ts.ModuleDeclaration):void {
     }
 }
 
-function checkImport(statement:ts.ImportEqualsDeclaration):void {
-    let currentFileName = statement.getSourceFile().fileName;
-    let importDeclaration = <ts.ImportEqualsDeclaration>statement;
-    if (importDeclaration.moduleReference.kind == ts.SyntaxKind.QualifiedName) {
-        let qualifiedName = <ts.QualifiedName>importDeclaration.moduleReference;
-        let type = checker.getTypeAtLocation(qualifiedName);
-        if (type.flags & ts.TypeFlags.Interface) {
-            return;
-        }
-        let declarations = type.symbol.getDeclarations();
-        declarations.forEach(declaration=> {
-            let file = declaration.getSourceFile();
-            if (file.isDeclarationFile) {
-                return;
-            }
-            addDependency(currentFileName, file.fileName);
-        })
+function checkDependencyAtLocation(node:ts.Node):void {
+    let type = checker.getTypeAtLocation(node);
+    if (type.flags & ts.TypeFlags.Interface) {
+        return;
     }
+    let sourceFile = type.symbol.valueDeclaration.getSourceFile();
+    if (sourceFile.isDeclarationFile) {
+        return;
+    }
+    addDependency(node.getSourceFile().fileName, sourceFile.fileName);
 }
-
 
 function checkInheriting(node:ts.ClassDeclaration):void {
     if (!node.heritageClauses) {
@@ -175,15 +172,7 @@ function checkInheriting(node:ts.ClassDeclaration):void {
     }
     let currentFileName = node.getSourceFile().fileName;
     superClasses.forEach(superClass=> {
-        let type = checker.getTypeAtLocation(superClass);
-        let declarations = type.symbol.getDeclarations();
-        declarations.forEach(declaration=> {
-            let file = declaration.getSourceFile();
-            if (file.isDeclarationFile) {
-                return;
-            }
-            addDependency(currentFileName, file.fileName);
-        })
+        checkDependencyAtLocation(superClass);
     });
 }
 
@@ -208,6 +197,7 @@ function checkStaticMember(node:ts.ClassDeclaration):void {
 function checkExpression(expression:ts.Expression):void {
     switch (expression.kind) {
         case ts.SyntaxKind.NewExpression:
+            let newExpression = <ts.NewExpression>expression;
 
             break;
 

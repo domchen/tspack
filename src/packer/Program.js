@@ -31,11 +31,10 @@ function run(args) {
         return;
     }
     var compilerOptions = optionResult.options;
-    compilerOptions.declaration = true;
     compilerOptions.module = ts.ModuleKind.None;
     var packerOptions = convertPackerOptionsFromJson(configObject["packerOptions"], baseDir);
     var modules = configObject["modules"];
-    formatDependencies(modules, packerOptions);
+    formatModules(modules, packerOptions, compilerOptions);
     modules.forEach(function (moduleConfig) {
         emitModule(moduleConfig, packerOptions, compilerOptions);
     });
@@ -78,18 +77,17 @@ function convertPackerOptionsFromJson(json, baseDir) {
     }
     return options;
 }
-function formatDependencies(moduleConfigs, packerOptions) {
+function formatModules(moduleConfigs, packerOptions, compilerOptions) {
     var tsdMap = {};
     moduleConfigs.forEach(function (moduleConfig) {
-        var outFile = moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
-        if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
-            outFile = outFile.substr(0, outFile.length - 3);
+        if (moduleConfig.declaration === undefined) {
+            moduleConfig.declaration = !!compilerOptions.declaration;
         }
-        moduleConfig.declarationFileName = outFile + ".d.ts";
         tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(function (moduleConfig) {
         if (isArray(moduleConfig.dependencies)) {
+            moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
             var dependencies = moduleConfig.dependencies;
             moduleConfig.dependentModules = [];
             for (var i = 0; i < dependencies.length; i++) {
@@ -99,6 +97,13 @@ function formatDependencies(moduleConfigs, packerOptions) {
                     ts.sys.exit(1);
                 }
                 moduleConfig.dependentModules.push(config);
+                if (!config.declarationFileName) {
+                    var outFile = config.outFile;
+                    if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
+                        outFile = outFile.substr(0, outFile.length - 3);
+                    }
+                    config.declarationFileName = outFile + ".d.ts";
+                }
             }
         }
     });
@@ -108,42 +113,37 @@ function isArray(value) {
 }
 function emitModule(moduleConfig, packerOptions, compilerOptions) {
     compilerOptions.outFile = moduleConfig.outFile;
+    compilerOptions.declaration = moduleConfig.declaration || !!moduleConfig.declarationFileName;
     var fileNames = getFileNames(moduleConfig, packerOptions.projectDir);
     var program = ts.createProgram(fileNames, compilerOptions);
-    var diagnostics = ts.getPreEmitDiagnostics(program);
+    if (fileNames.length > 1) {
+        var sortResult = Sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker());
+        if (sortResult.circularReferences.length > 0) {
+            ts.sys.write("error: circular reference at" + ts.sys.newLine);
+            ts.sys.write("    " + sortResult.circularReferences.join(ts.sys.newLine + "    ") +
+                ts.sys.newLine + "    ..." + ts.sys.newLine);
+            ts.sys.exit(1);
+            return;
+        }
+        var sourceFiles_1 = program.getSourceFiles();
+        var rootFileNames_1 = program.getRootFileNames();
+        sourceFiles_1.length = 0;
+        rootFileNames_1.length = 0;
+        sortResult.sortedFiles.forEach(function (sourceFile) {
+            sourceFiles_1.push(sourceFile);
+            rootFileNames_1.push(sourceFile.fileName);
+        });
+        console.log("module " + moduleConfig.name + " :\n");
+        console.log(rootFileNames_1.join("\n") + "\n");
+    }
+    var emitResult = program.emit();
+    var diagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
     if (diagnostics.length > 0) {
         diagnostics.forEach(function (diagnostic) {
             ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
         });
-        ts.sys.exit(1);
-        return;
-    }
-    var sortResult = Sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker());
-    if (sortResult.circularReferences.length > 0) {
-        ts.sys.write("error: circular reference at" + ts.sys.newLine);
-        ts.sys.write("    " + sortResult.circularReferences.join(ts.sys.newLine + "    ") +
-            ts.sys.newLine + "    ..." + ts.sys.newLine);
-        ts.sys.exit(1);
-        return;
-    }
-    var sourceFiles = program.getSourceFiles();
-    var rootFileNames = program.getRootFileNames();
-    sourceFiles.length = 0;
-    rootFileNames.length = 0;
-    sortResult.sortedFiles.forEach(function (sourceFile) {
-        sourceFiles.push(sourceFile);
-        rootFileNames.push(sourceFile.fileName);
-    });
-    console.log("module " + moduleConfig.name + " :\n");
-    console.log(rootFileNames.join("\n") + "\n");
-    var emitResult = program.emit();
-    if (emitResult.diagnostics.length > 0) {
-        emitResult.diagnostics.forEach(function (diagnostic) {
-            ts.sys.write(ts.formatDiagnostics([diagnostic], defaultFormatDiagnosticsHost));
-        });
         var exitCode = emitResult.emitSkipped ? 1 : 0;
         ts.sys.exit(exitCode);
-        return;
     }
 }
 function getFileNames(moduleConfig, baseDir) {
@@ -158,23 +158,24 @@ function getFileNames(moduleConfig, baseDir) {
     }
     var fileNames = optionResult.fileNames;
     if (moduleConfig.dependentModules) {
+        var declarations_1 = [];
         moduleConfig.dependentModules.forEach(function (config) {
-            fileNames.push(config.declarationFileName);
+            declarations_1.push(config.declarationFileName);
         });
+        fileNames = declarations_1.concat(fileNames);
     }
     return fileNames;
 }
 function removeDeclarations(modules) {
     modules.forEach(function (moduleConfig) {
-        if (!moduleConfig.noEmitDeclaration) {
-            return;
-        }
-        var fileName = moduleConfig.declarationFileName;
-        if (ts.sys.fileExists(fileName)) {
-            try {
-                fs.unlinkSync(fileName);
-            }
-            catch (e) {
+        if (!moduleConfig.declaration && moduleConfig.declarationFileName) {
+            var fileName = moduleConfig.declarationFileName;
+            if (ts.sys.fileExists(fileName)) {
+                try {
+                    fs.unlinkSync(fileName);
+                }
+                catch (e) {
+                }
             }
         }
     });

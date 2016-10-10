@@ -37,14 +37,15 @@ declare namespace tspack {
         name?:string,
         baseDir?:string,
         outFile?:string,
-        noEmitDeclaration?:boolean,
+        declaration?:boolean,
         files?:string[],
         include?:string[],
         exclude?:string[],
         dependencies?:string[],
-        /** internal **/
+        /* @internal */
         declarationFileName?:string,
-        dependentModules?:ModuleConfig[]
+        /* @internal */
+        dependentModules?:ModuleConfig[],
     }
 
 }
