@@ -24,11 +24,18 @@
 //
 //////////////////////////////////////////////////////////////////////////////////////
 var __reflect = (this && this.__reflect) || function (d, t) {
-    var p = d.prototype;
-    p.__class__ = t[0];
-    p.__types__ = p.__types__ ? t.concat(p.__types__) : t;
-};
+        var p = d.prototype;
+        p.__class__ = t[0];
+        p.__types__ = p.__types__ ? t.concat(p.__types__) : t;
+    };
+
+
+var __reflect = (this && this.__reflect) || function (c, v) {
+    var p = c.prototype;
+    p.__class__ = v[0], p.__types__ = p.__types__ ? v.concat(p.__types__) : v;
+}
+
 
 var __accessor = (this && this.__accessor) || function (o, p, g, s) {
-    Object.defineProperty(o, p, {configurable: true, enumerable: true, get: g, set: s});
-};
+        Object.defineProperty(o, p, {configurable: true, enumerable: true, get: g, set: s});
+    };
