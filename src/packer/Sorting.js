@@ -156,8 +156,6 @@ function checkExpression(expression) {
     }
     switch (expression.kind) {
         case ts.SyntaxKind.NewExpression:
-            checkNewExpression(expression);
-            break;
         case ts.SyntaxKind.CallExpression:
             checkCallExpression(expression);
             break;
@@ -218,22 +216,10 @@ function checkCallExpression(callExpression) {
                 declaration.kind === ts.SyntaxKind.MethodDeclaration) {
                 checkFunctionBody(declaration.body);
             }
+            else if (declaration.kind === ts.SyntaxKind.ClassDeclaration) {
+                checkClassInstantiation(declaration);
+            }
             break;
-    }
-}
-function checkNewExpression(expression) {
-    var type = checker.getTypeAtLocation(expression);
-    if (!type || !type.symbol || type.flags & ts.TypeFlags.Interface) {
-        return;
-    }
-    var declaration = type.symbol.valueDeclaration;
-    var sourceFile = declaration.getSourceFile();
-    if (sourceFile.isDeclarationFile) {
-        return;
-    }
-    addDependency(expression.getSourceFile().fileName, sourceFile.fileName);
-    if (declaration.kind === ts.SyntaxKind.ClassDeclaration) {
-        checkClassInstantiation(declaration);
     }
 }
 function checkClassInstantiation(node) {

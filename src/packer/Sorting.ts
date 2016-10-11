@@ -195,8 +195,6 @@ function checkExpression(expression:ts.Expression):void {
     }
     switch (expression.kind) {
         case ts.SyntaxKind.NewExpression:
-            checkNewExpression(expression);
-            break;
         case ts.SyntaxKind.CallExpression:
             checkCallExpression(<ts.CallExpression>expression);
             break;
@@ -277,25 +275,12 @@ function checkCallExpression(callExpression:ts.CallExpression):void {
                 declaration.kind === ts.SyntaxKind.MethodDeclaration) {
                 checkFunctionBody((<ts.FunctionDeclaration>declaration).body);
             }
+            else if (declaration.kind === ts.SyntaxKind.ClassDeclaration) {
+                checkClassInstantiation(<ts.ClassDeclaration>declaration);
+            }
             break;
     }
 
-}
-
-function checkNewExpression(expression:ts.Expression):void {
-    let type = checker.getTypeAtLocation(expression);
-    if (!type || !type.symbol || type.flags & ts.TypeFlags.Interface) {
-        return;
-    }
-    let declaration = type.symbol.valueDeclaration;
-    let sourceFile = declaration.getSourceFile();
-    if (sourceFile.isDeclarationFile) {
-        return;
-    }
-    addDependency(expression.getSourceFile().fileName, sourceFile.fileName);
-    if (declaration.kind === ts.SyntaxKind.ClassDeclaration) {
-        checkClassInstantiation(<ts.ClassDeclaration>declaration);
-    }
 }
 
 function checkClassInstantiation(node:ts.ClassDeclaration):void {
