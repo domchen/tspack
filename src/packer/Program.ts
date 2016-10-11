@@ -121,7 +121,11 @@ function formatModules(moduleConfigs:tspack.ModuleConfig[], packerOptions:tspack
         tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(moduleConfig=> {
-        moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
+        let outFile = moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
+        if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
+            outFile = outFile.substr(0, outFile.length - 3);
+        }
+        moduleConfig.declarationFileName = outFile + ".d.ts";
         if (isArray(moduleConfig.dependencies)) {
             let dependencies = moduleConfig.dependencies;
             moduleConfig.dependentModules = [];
@@ -132,13 +136,7 @@ function formatModules(moduleConfigs:tspack.ModuleConfig[], packerOptions:tspack
                     ts.sys.exit(1);
                 }
                 moduleConfig.dependentModules.push(config);
-                if (!config.declarationFileName) {
-                    let outFile = config.outFile;
-                    if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
-                        outFile = outFile.substr(0, outFile.length - 3);
-                    }
-                    config.declarationFileName = outFile + ".d.ts";
-                }
+                config.hasSubModule = true;
             }
         }
     });
@@ -150,7 +148,7 @@ function isArray(value:any):value is any[] {
 
 function emitModule(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.PackerOptions, compilerOptions:ts.CompilerOptions):void {
     compilerOptions.outFile = moduleConfig.outFile;
-    compilerOptions.declaration = moduleConfig.declaration || !!moduleConfig.declarationFileName;
+    compilerOptions.declaration = moduleConfig.declaration || !!moduleConfig.hasSubModule;
     let fileNames = getFileNames(moduleConfig, packerOptions.projectDir);
     let program = ts.createProgram(fileNames, compilerOptions);
 
@@ -210,7 +208,7 @@ function getFileNames(moduleConfig:tspack.ModuleConfig, baseDir):string[] {
 
 function removeDeclarations(modules:tspack.ModuleConfig[]):void {
     modules.forEach(moduleConfig=> {
-        if (!moduleConfig.declaration && moduleConfig.declarationFileName) {
+        if (!moduleConfig.declaration && moduleConfig.hasSubModule) {
             let fileName = moduleConfig.declarationFileName;
             if (ts.sys.fileExists(fileName)) {
                 try {

@@ -87,7 +87,11 @@ function formatModules(moduleConfigs, packerOptions, compilerOptions) {
         tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(function (moduleConfig) {
-        moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
+        var outFile = moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
+        if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
+            outFile = outFile.substr(0, outFile.length - 3);
+        }
+        moduleConfig.declarationFileName = outFile + ".d.ts";
         if (isArray(moduleConfig.dependencies)) {
             var dependencies = moduleConfig.dependencies;
             moduleConfig.dependentModules = [];
@@ -98,13 +102,7 @@ function formatModules(moduleConfigs, packerOptions, compilerOptions) {
                     ts.sys.exit(1);
                 }
                 moduleConfig.dependentModules.push(config);
-                if (!config.declarationFileName) {
-                    var outFile = getModuleFileName(config, packerOptions);;
-                    if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
-                        outFile = outFile.substr(0, outFile.length - 3);
-                    }
-                    config.declarationFileName = outFile + ".d.ts";
-                }
+                config.hasSubModule = true;
             }
         }
     });
@@ -114,7 +112,7 @@ function isArray(value) {
 }
 function emitModule(moduleConfig, packerOptions, compilerOptions) {
     compilerOptions.outFile = moduleConfig.outFile;
-    compilerOptions.declaration = moduleConfig.declaration || !!moduleConfig.declarationFileName;
+    compilerOptions.declaration = moduleConfig.declaration || !!moduleConfig.hasSubModule;
     var fileNames = getFileNames(moduleConfig, packerOptions.projectDir);
     var program = ts.createProgram(fileNames, compilerOptions);
     if (fileNames.length > 1) {
@@ -169,7 +167,7 @@ function getFileNames(moduleConfig, baseDir) {
 }
 function removeDeclarations(modules) {
     modules.forEach(function (moduleConfig) {
-        if (!moduleConfig.declaration && moduleConfig.declarationFileName) {
+        if (!moduleConfig.declaration && moduleConfig.hasSubModule) {
             var fileName = moduleConfig.declarationFileName;
             if (ts.sys.fileExists(fileName)) {
                 try {

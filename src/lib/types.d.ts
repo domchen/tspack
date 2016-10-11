@@ -43,6 +43,8 @@ declare namespace tspack {
         declarationFileName?:string,
         /* @internal */
         dependentModules?:ModuleConfig[],
+        /* @internal */
+        hasSubModule?:boolean
     }
 
 }
