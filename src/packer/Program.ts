@@ -99,13 +99,12 @@ function findConfigFile(searchPath:string):string {
 }
 
 function convertPackerOptionsFromJson(json:any, baseDir:string):tspack.PackerOptions {
-    let options:tspack.PackerOptions = {};
-    options.projectDir = baseDir;
     if (!json) {
-        return options;
+        json = {};
     }
-    if (json["outDir"]) {
-        options.outDir = json["outDir"];
+    let options:tspack.PackerOptions = json;
+    options.projectDir = baseDir;
+    if (options.outDir) {
         options.outDir = path.join(baseDir, options.outDir);
     }
     return options;
@@ -132,7 +131,7 @@ function formatModules(moduleConfigs:tspack.ModuleConfig[], packerOptions:tspack
             for (let i = 0; i < dependencies.length; i++) {
                 let config = tsdMap[dependencies[i]];
                 if (!config) {
-                    ts.sys.write("error tspack.json: Could not find the name of dependency: " + dependencies[i] + ts.sys.newLine);
+                    ts.sys.write("error : could not find the name of module dependency : " + dependencies[i] + ts.sys.newLine);
                     ts.sys.exit(1);
                 }
                 moduleConfig.dependentModules.push(config);
@@ -155,9 +154,9 @@ function emitModule(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.Packe
     if (fileNames.length > 1) {
         let sortResult = Sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker())
         if (sortResult.circularReferences.length > 0) {
-            ts.sys.write("error: circular reference at" + ts.sys.newLine);
-            ts.sys.write("    " + sortResult.circularReferences.join(ts.sys.newLine + "    ") +
-                ts.sys.newLine + "    ..." + ts.sys.newLine);
+            ts.sys.write("error: circular references in '" + moduleConfig.name + "' :" + ts.sys.newLine);
+            ts.sys.write("    at " + sortResult.circularReferences.join(ts.sys.newLine + "    at ") +
+                ts.sys.newLine + "    at ..." + ts.sys.newLine);
             ts.sys.exit(1);
             return;
         }
@@ -166,12 +165,19 @@ function emitModule(moduleConfig:tspack.ModuleConfig, packerOptions:tspack.Packe
         let rootFileNames = program.getRootFileNames();
         sourceFiles.length = 0;
         rootFileNames.length = 0;
+        let sortedFileNames:string[] = [];
         sortResult.sortedFiles.forEach(sourceFile=> {
             sourceFiles.push(sourceFile);
             rootFileNames.push(sourceFile.fileName);
+            if (!sourceFile.isDeclarationFile) {
+                sortedFileNames.push(sourceFile.fileName);
+            }
         });
-        console.log("module " + moduleConfig.name + " :\n");
-        console.log(rootFileNames.join("\n") + "\n");
+        if (packerOptions.listSortedFiles) {
+            console.log("sorted files of '" + moduleConfig.name + "' :");
+            console.log("    " + sortedFileNames.join(ts.sys.newLine + "    ") + ts.sys.newLine);
+        }
+
     }
 
     let emitResult = program.emit();
@@ -232,9 +238,9 @@ function sortOnDependency(modules:tspack.ModuleConfig[]):void {
         let moduleName = module.name;
         let references = updateModuleWeight(moduleName, 0, moduleWeightMap, dependencyMap, [moduleName]);
         if (references) {
-            ts.sys.write("error tspack.json : circular reference of module at" + ts.sys.newLine);
-            ts.sys.write("    " + references.join(ts.sys.newLine + "    ") +
-                ts.sys.newLine + "    ..." + ts.sys.newLine);
+            ts.sys.write("error : circular references in module dependencies configuration :" + ts.sys.newLine);
+            ts.sys.write("    at " + references.join(ts.sys.newLine + "    at ") +
+                ts.sys.newLine + "    at ..." + ts.sys.newLine);
             ts.sys.exit(1);
             return;
         }

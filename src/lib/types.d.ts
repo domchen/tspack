@@ -26,8 +26,10 @@
 
 declare namespace tspack {
     export interface PackerOptions {
-        projectDir?:string,
-        outDir?:string
+        outDir?:string,
+        listSortedFiles?:boolean,
+        /* @internal */
+        projectDir?:string
     }
 
     export interface ModuleConfig {
