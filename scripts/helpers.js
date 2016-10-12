@@ -24,8 +24,8 @@
 //
 //////////////////////////////////////////////////////////////////////////////////////
 
-var __reflect = (this && this.__reflect) || function (p, v) {
-    p.__class__ = v[0], p.__types__ = p.__types__ ? v.concat(p.__types__) : v;
+var __reflect = this && this.__reflect || function (p, c, t) {
+    p.__class__ = c, t ? t.push(c) : t = [c], p.__types__ = p.__types__ ? t.concat(p.__types__) : t;
 }
 
 
