@@ -139,7 +139,6 @@ namespace ts {
      *     console.log(ts.is(instance,"ts.DisplayObjectContainer"))  //true,because ts.DisplayObjectContainer is the superclass of ts.Sprite.
      *     console.log(ts.is(instance,"ts.Bitmap"))  //false,because ts.Bitmap is not the superclass of ts.Sprite.
      * </pre>
-     * @see ts.registerClass()
      */
     /**
      * @language zh_CN
@@ -154,7 +153,6 @@ namespace ts {
      *     console.log(ts.is(instance,"ts.DisplayObjectContainer"))  //true，因为ts.DisplayObjectContainer是ts.Sprite的父类。
      *     console.log(ts.is(instance,"ts.Bitmap"))  //false，因为ts.Bitmap不是ts.Sprite的父类。
      * </pre>
-     * @see ts.registerClass()
      */
     export function is(instance:any, typeName:string):boolean {
         if (!instance || typeof instance != "object") {
