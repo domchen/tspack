@@ -31,7 +31,7 @@ import * as utils from "./Utils";
 
 
 export function emitModule(moduleConfig:config.ModuleConfig, compilerOptions:ts.CompilerOptions, errors:string[]):string[] {
-    if(moduleConfig.name){
+    if (moduleConfig.name) {
         compilerOptions.module = ts.ModuleKind.None;
         compilerOptions.outFile = moduleConfig.outFile;
         compilerOptions.declaration = moduleConfig.declaration;
@@ -43,11 +43,10 @@ export function emitModule(moduleConfig:config.ModuleConfig, compilerOptions:ts.
     if (fileNames.length > 1) {
         let sortResult = sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker());
         if (sortResult.circularReferences.length > 0) {
-            ts.sys.write("error: circular references in '" + moduleConfig.name + "' :" + ts.sys.newLine);
-            ts.sys.write("    at " + sortResult.circularReferences.join(ts.sys.newLine + "    at ") +
-                ts.sys.newLine + "    at ..." + ts.sys.newLine);
-            ts.sys.exit(1);
-            return;
+            let error:string = "";
+            error += "error: circular references in '" + moduleConfig.name + "' :" + ts.sys.newLine;
+            error += "    at " + sortResult.circularReferences.join(ts.sys.newLine + "    at ") + ts.sys.newLine + "    at ...";
+            return sortedFileNames;
         }
         // apply the sorting result.
         let sourceFiles = program.getSourceFiles();

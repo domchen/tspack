@@ -27,6 +27,7 @@
 import * as ts from "typescript-plus";
 import * as config from "./Config";
 import * as compiler from "./Compiler";
+import * as service from "./Service";
 import * as commandLine from "./CommandLine";
 import * as utils from "./Utils";
 
@@ -83,7 +84,9 @@ function run(args:string[]):void {
     }
 
     if (commandOptions.watch) {
-
+        result.modules.forEach(moduleConfig=> {
+            service.watchModule(moduleConfig, result.compilerOptions);
+        });
     }
     else {
         let errors:string[] = [];

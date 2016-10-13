@@ -2,6 +2,7 @@
 var ts = require("typescript-plus");
 var config = require("./Config");
 var compiler = require("./Compiler");
+var service = require("./Service");
 var commandLine = require("./CommandLine");
 var utils = require("./Utils");
 exports.version = "2.0.4";
@@ -52,6 +53,9 @@ function run(args) {
         ts.sys.exit(1);
     }
     if (commandOptions.watch) {
+        result.modules.forEach(function (moduleConfig) {
+            service.watchModule(moduleConfig, result.compilerOptions);
+        });
     }
     else {
         var errors_1 = [];

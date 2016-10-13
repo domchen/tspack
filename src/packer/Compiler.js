@@ -14,11 +14,10 @@ function emitModule(moduleConfig, compilerOptions, errors) {
     if (fileNames.length > 1) {
         var sortResult = sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker());
         if (sortResult.circularReferences.length > 0) {
-            ts.sys.write("error: circular references in '" + moduleConfig.name + "' :" + ts.sys.newLine);
-            ts.sys.write("    at " + sortResult.circularReferences.join(ts.sys.newLine + "    at ") +
-                ts.sys.newLine + "    at ..." + ts.sys.newLine);
-            ts.sys.exit(1);
-            return;
+            var error = "";
+            error += "error: circular references in '" + moduleConfig.name + "' :" + ts.sys.newLine;
+            error += "    at " + sortResult.circularReferences.join(ts.sys.newLine + "    at ") + ts.sys.newLine + "    at ...";
+            return sortedFileNames;
         }
         var sourceFiles_1 = program.getSourceFiles();
         var rootFileNames_1 = program.getRootFileNames();
