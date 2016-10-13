@@ -24,29 +24,20 @@
 //
 //////////////////////////////////////////////////////////////////////////////////////
 
-declare namespace tspack {
-    export interface PackerOptions {
-        outDir?:string,
-        listSortedFiles?:boolean,
-        /* @internal */
-        projectDir?:string
-    }
+import * as ts from "typescript-plus";
 
-    export interface ModuleConfig {
-        name?:string,
-        baseDir?:string,
-        outFile?:string,
-        declaration?:boolean,
-        files?:string[],
-        include?:string[],
-        exclude?:string[],
-        dependencies?:string[],
-        /* @internal */
-        declarationFileName?:string,
-        /* @internal */
-        dependentModules?:ModuleConfig[],
-        /* @internal */
-        hasSubModule?:boolean
-    }
+const defaultFormatDiagnosticsHost:ts.FormatDiagnosticsHost = {
+    getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
+    getNewLine: () => ts.sys.newLine,
+    getCanonicalFileName: createGetCanonicalFileName(ts.sys.useCaseSensitiveFileNames)
+};
 
+function createGetCanonicalFileName(useCaseSensitivefileNames:boolean):(fileName:string) => string {
+    return useCaseSensitivefileNames
+        ? ((fileName) => fileName)
+        : ((fileName) => fileName.toLowerCase());
+}
+
+export function formatDiagnostics(diagnostics:ts.Diagnostic[]):string {
+    return ts.formatDiagnostics(diagnostics, defaultFormatDiagnosticsHost);
 }
