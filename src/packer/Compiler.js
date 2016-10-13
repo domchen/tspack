@@ -3,8 +3,11 @@ var ts = require("typescript-plus");
 var sorting = require("./Sorting");
 var utils = require("./Utils");
 function emitModule(moduleConfig, compilerOptions, errors) {
-    compilerOptions.outFile = moduleConfig.outFile;
-    compilerOptions.declaration = moduleConfig.declaration;
+    if (moduleConfig.name) {
+        compilerOptions.module = ts.ModuleKind.None;
+        compilerOptions.outFile = moduleConfig.outFile;
+        compilerOptions.declaration = moduleConfig.declaration;
+    }
     var fileNames = moduleConfig.fileNames;
     var program = ts.createProgram(fileNames, compilerOptions);
     var sortedFileNames = [];

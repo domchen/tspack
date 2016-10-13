@@ -4,7 +4,11 @@ var ts = require("typescript-plus");
 var utils = require("./Utils");
 function findConfigFile(searchPath) {
     while (true) {
-        var fileName = path.join(searchPath, "tspack.json");
+        var fileName = utils.joinPath(searchPath, "tspack.json");
+        if (ts.sys.fileExists(fileName)) {
+            return fileName;
+        }
+        fileName = utils.joinPath(searchPath, "tsconfig.json");
         if (ts.sys.fileExists(fileName)) {
             return fileName;
         }
@@ -38,52 +42,49 @@ function parseOptionsFromJson(jsonOptions, basePath, configFileName) {
         return result;
     }
     var compilerOptions = compilerResult.options;
-    compilerOptions.module = ts.ModuleKind.None;
     result.compilerOptions = compilerOptions;
-    var packerOptions = convertPackerOptionsFromJson(jsonOptions["packerOptions"], basePath);
-    result.packerOptions = packerOptions;
+    var outDir = basePath;
+    if (compilerOptions.outDir) {
+        outDir = compilerOptions.outDir;
+    }
     var modules = jsonOptions["modules"];
-    formatModules(modules, packerOptions, compilerOptions, result.errors);
-    sortOnDependency(modules, result.errors);
-    modules.forEach(function (moduleConfig) {
-        moduleConfig.fileNames = getFileNames(moduleConfig, packerOptions.projectDir, result.errors);
-    });
+    if (modules) {
+        formatModules(modules, outDir, basePath, result.errors);
+        sortOnDependency(modules, result.errors);
+        modules.forEach(function (moduleConfig) {
+            if (moduleConfig.declaration === undefined) {
+                moduleConfig.declaration = !!compilerOptions.declaration;
+            }
+            moduleConfig.fileNames = getFileNames(moduleConfig, basePath, result.errors);
+        });
+    }
+    else {
+        var module_1 = {};
+        var optionResult = ts.parseJsonConfigFileContent(jsonOptions, ts.sys, basePath);
+        if (optionResult.errors.length > 0) {
+            result.errors.push(utils.formatDiagnostics(optionResult.errors));
+            module_1.fileNames = [];
+        }
+        else {
+            module_1.fileNames = optionResult.fileNames;
+        }
+        if (compilerOptions.outFile) {
+            module_1.name = path.basename(compilerOptions.outFile);
+            module_1.outFile = compilerOptions.outFile;
+        }
+        modules = [module_1];
+    }
     result.modules = modules;
     return result;
 }
 exports.parseOptionsFromJson = parseOptionsFromJson;
-function getModuleFileName(moduleConfig, packerOptions) {
-    if (moduleConfig.outFile) {
-        var baseDir = packerOptions.projectDir;
-        if (moduleConfig.baseDir) {
-            baseDir = path.join(baseDir, moduleConfig.baseDir);
-        }
-        return path.join(baseDir, moduleConfig.outFile);
-    }
-    var outDir = packerOptions.outDir ? packerOptions.outDir : packerOptions.projectDir;
-    return path.join(outDir, moduleConfig.name + ".js");
-}
-function convertPackerOptionsFromJson(json, baseDir) {
-    if (!json) {
-        json = {};
-    }
-    var options = json;
-    options.projectDir = baseDir;
-    if (options.outDir) {
-        options.outDir = path.join(baseDir, options.outDir);
-    }
-    return options;
-}
-function formatModules(moduleConfigs, packerOptions, compilerOptions, errors) {
+function formatModules(moduleConfigs, outDir, basePath, errors) {
     var tsdMap = {};
     moduleConfigs.forEach(function (moduleConfig) {
-        if (moduleConfig.declaration === undefined) {
-            moduleConfig.declaration = !!compilerOptions.declaration;
-        }
         tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(function (moduleConfig) {
-        var outFile = moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
+        var outFile = moduleConfig.outFile = getModuleFileName(moduleConfig, outDir, basePath);
         if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
             outFile = outFile.substr(0, outFile.length - 3);
         }
@@ -103,12 +104,22 @@ function formatModules(moduleConfigs, packerOptions, compilerOptions, errors) {
         }
     });
 }
+function getModuleFileName(moduleConfig, outDir, basePath) {
+    if (moduleConfig.outFile) {
+        var baseDir = basePath;
+        if (moduleConfig.baseDir) {
+            baseDir = utils.joinPath(baseDir, moduleConfig.baseDir);
+        }
+        return utils.joinPath(baseDir, moduleConfig.outFile);
+    }
+    return utils.joinPath(outDir || basePath, moduleConfig.name + ".js");
+}
 function isArray(value) {
     return Array.isArray ? Array.isArray(value) : value instanceof Array;
 }
 function getFileNames(moduleConfig, baseDir, errors) {
     if (moduleConfig.baseDir) {
-        baseDir = path.join(baseDir, moduleConfig.baseDir);
+        baseDir = utils.joinPath(baseDir, moduleConfig.baseDir);
     }
     var optionResult = ts.parseJsonConfigFileContent(moduleConfig, ts.sys, baseDir);
     if (optionResult.errors.length > 0) {
@@ -128,13 +139,13 @@ function getFileNames(moduleConfig, baseDir, errors) {
 function sortOnDependency(modules, errors) {
     var dependencyMap = {};
     for (var _i = 0, modules_1 = modules; _i < modules_1.length; _i++) {
-        var module_1 = modules_1[_i];
-        dependencyMap[module_1.name] = module_1.dependencies;
+        var module_2 = modules_1[_i];
+        dependencyMap[module_2.name] = module_2.dependencies;
     }
     var moduleWeightMap = {};
     for (var _a = 0, modules_2 = modules; _a < modules_2.length; _a++) {
-        var module_2 = modules_2[_a];
-        var moduleName = module_2.name;
+        var module_3 = modules_2[_a];
+        var moduleName = module_3.name;
         var references = updateModuleWeight(moduleName, 0, moduleWeightMap, dependencyMap, [moduleName]);
         if (references) {
             var errorText = "error : circular references in module dependencies configuration :" + ts.sys.newLine;

@@ -29,15 +29,19 @@ import * as config from "./Config";
 import * as sorting from "./Sorting";
 import * as utils from "./Utils";
 
+
 export function emitModule(moduleConfig:config.ModuleConfig, compilerOptions:ts.CompilerOptions, errors:string[]):string[] {
-    compilerOptions.outFile = moduleConfig.outFile;
-    compilerOptions.declaration = moduleConfig.declaration;
+    if(moduleConfig.name){
+        compilerOptions.module = ts.ModuleKind.None;
+        compilerOptions.outFile = moduleConfig.outFile;
+        compilerOptions.declaration = moduleConfig.declaration;
+    }
     let fileNames = moduleConfig.fileNames;
     let program = ts.createProgram(fileNames, compilerOptions);
 
     let sortedFileNames:string[] = [];
     if (fileNames.length > 1) {
-        let sortResult = sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker())
+        let sortResult = sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker());
         if (sortResult.circularReferences.length > 0) {
             ts.sys.write("error: circular references in '" + moduleConfig.name + "' :" + ts.sys.newLine);
             ts.sys.write("    at " + sortResult.circularReferences.join(ts.sys.newLine + "    at ") +

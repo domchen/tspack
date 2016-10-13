@@ -28,13 +28,6 @@ import * as path from "path";
 import * as ts from "typescript-plus";
 import * as utils from "./Utils";
 
-export interface PackerOptions {
-    outDir?:string;
-    listSortedFiles?:boolean;
-    /* @internal */
-    projectDir?:string;
-}
-
 export interface ModuleConfig {
     name?:string;
     baseDir?:string;
@@ -54,14 +47,17 @@ export interface ModuleConfig {
 
 export interface OptionsResult {
     compilerOptions?:ts.CompilerOptions;
-    packerOptions?:PackerOptions;
     modules?:ModuleConfig[];
     errors?:string[];
 }
 
 export function findConfigFile(searchPath:string):string {
     while (true) {
-        let fileName = path.join(searchPath, "tspack.json");
+        let fileName = utils.joinPath(searchPath, "tspack.json");
+        if (ts.sys.fileExists(fileName)) {
+            return fileName;
+        }
+        fileName = utils.joinPath(searchPath, "tsconfig.json");
         if (ts.sys.fileExists(fileName)) {
             return fileName;
         }
@@ -95,56 +91,50 @@ export function parseOptionsFromJson(jsonOptions:any, basePath:string, configFil
         return result;
     }
     let compilerOptions = compilerResult.options;
-    compilerOptions.module = ts.ModuleKind.None;
     result.compilerOptions = compilerOptions;
-    let packerOptions = convertPackerOptionsFromJson(jsonOptions["packerOptions"], basePath);
-    result.packerOptions = packerOptions;
+    let outDir = basePath;
+    if (compilerOptions.outDir) {
+        outDir = compilerOptions.outDir;
+    }
     let modules:ModuleConfig[] = jsonOptions["modules"];
-    formatModules(modules, packerOptions, compilerOptions, result.errors);
-    sortOnDependency(modules, result.errors);
-    modules.forEach(moduleConfig=> {
-        moduleConfig.fileNames = getFileNames(moduleConfig, packerOptions.projectDir, result.errors);
-    });
+    if (modules) {
+        formatModules(modules, outDir, basePath, result.errors);
+        sortOnDependency(modules, result.errors);
+        modules.forEach(moduleConfig=> {
+            if (moduleConfig.declaration === undefined) {
+                moduleConfig.declaration = !!compilerOptions.declaration;
+            }
+            moduleConfig.fileNames = getFileNames(moduleConfig, basePath, result.errors);
+        });
+    }
+    else {
+        let module:ModuleConfig = {};
+        let optionResult = ts.parseJsonConfigFileContent(jsonOptions, ts.sys, basePath);
+        if (optionResult.errors.length > 0) {
+            result.errors.push(utils.formatDiagnostics(optionResult.errors));
+            module.fileNames = [];
+        }
+        else {
+            module.fileNames = optionResult.fileNames;
+        }
+        if (compilerOptions.outFile) {
+            module.name = path.basename(compilerOptions.outFile);
+            module.outFile = compilerOptions.outFile;
+        }
+        modules = [module];
+    }
     result.modules = modules;
     return result;
 }
 
-function getModuleFileName(moduleConfig:ModuleConfig, packerOptions:PackerOptions):string {
-    if (moduleConfig.outFile) {
-        let baseDir = packerOptions.projectDir;
-        if (moduleConfig.baseDir) {
-            baseDir = path.join(baseDir, moduleConfig.baseDir);
-        }
-        return path.join(baseDir, moduleConfig.outFile);
-    }
-    let outDir:string = packerOptions.outDir ? packerOptions.outDir : packerOptions.projectDir;
-    return path.join(outDir, moduleConfig.name + ".js");
-}
 
-
-function convertPackerOptionsFromJson(json:any, baseDir:string):PackerOptions {
-    if (!json) {
-        json = {};
-    }
-    let options:PackerOptions = json;
-    options.projectDir = baseDir;
-    if (options.outDir) {
-        options.outDir = path.join(baseDir, options.outDir);
-    }
-    return options;
-}
-
-function formatModules(moduleConfigs:ModuleConfig[], packerOptions:PackerOptions,
-                       compilerOptions:ts.CompilerOptions, errors:string[]):void {
+function formatModules(moduleConfigs:ModuleConfig[], outDir:string, basePath:string, errors:string[]):void {
     let tsdMap:{[key:string]:ModuleConfig} = {};
     moduleConfigs.forEach(moduleConfig=> {
-        if (moduleConfig.declaration === undefined) {
-            moduleConfig.declaration = !!compilerOptions.declaration;
-        }
         tsdMap[moduleConfig.name] = moduleConfig;
     });
     moduleConfigs.forEach(moduleConfig=> {
-        let outFile = moduleConfig.outFile = getModuleFileName(moduleConfig, packerOptions);
+        let outFile = moduleConfig.outFile = getModuleFileName(moduleConfig, outDir, basePath);
         if (outFile.substr(outFile.length - 3).toLowerCase() == ".js") {
             outFile = outFile.substr(0, outFile.length - 3);
         }
@@ -165,6 +155,17 @@ function formatModules(moduleConfigs:ModuleConfig[], packerOptions:PackerOptions
     });
 }
 
+function getModuleFileName(moduleConfig:ModuleConfig, outDir:string, basePath:string):string {
+    if (moduleConfig.outFile) {
+        let baseDir = basePath;
+        if (moduleConfig.baseDir) {
+            baseDir = utils.joinPath(baseDir, moduleConfig.baseDir);
+        }
+        return utils.joinPath(baseDir, moduleConfig.outFile);
+    }
+    return utils.joinPath(outDir || basePath, moduleConfig.name + ".js");
+}
+
 function isArray(value:any):value is any[] {
     return Array.isArray ? Array.isArray(value) : value instanceof Array;
 }
@@ -172,7 +173,7 @@ function isArray(value:any):value is any[] {
 
 function getFileNames(moduleConfig:ModuleConfig, baseDir:string, errors:string[]):string[] {
     if (moduleConfig.baseDir) {
-        baseDir = path.join(baseDir, moduleConfig.baseDir);
+        baseDir = utils.joinPath(baseDir, moduleConfig.baseDir);
     }
     let optionResult = ts.parseJsonConfigFileContent(moduleConfig, ts.sys, baseDir);
     if (optionResult.errors.length > 0) {
