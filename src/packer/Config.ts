@@ -25,7 +25,6 @@
 //////////////////////////////////////////////////////////////////////////////////////
 
 import * as path from "path";
-import * as fs from "fs";
 import * as ts from "typescript-plus";
 import * as utils from "./Utils";
 
@@ -72,7 +71,19 @@ export function findConfigFile(searchPath:string):string {
         }
         searchPath = parentPath;
     }
-    return undefined;
+    return "";
+}
+
+export function parseOptionsFromFile(configFileName:string):OptionsResult {
+    let jsonResult = ts.parseConfigFileTextToJson(configFileName, ts.sys.readFile(configFileName));
+    const configObject = jsonResult.config;
+    if (!configObject) {
+        let result:OptionsResult = {};
+        result.errors = [utils.formatDiagnostics([jsonResult.error])];
+        return result;
+    }
+    let baseDir = path.dirname(configFileName);
+    return parseOptionsFromJson(configObject, baseDir, configFileName);
 }
 
 export function parseOptionsFromJson(jsonOptions:any, basePath:string, configFileName?:string):OptionsResult {

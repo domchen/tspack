@@ -14,9 +14,21 @@ function findConfigFile(searchPath) {
         }
         searchPath = parentPath;
     }
-    return undefined;
+    return "";
 }
 exports.findConfigFile = findConfigFile;
+function parseOptionsFromFile(configFileName) {
+    var jsonResult = ts.parseConfigFileTextToJson(configFileName, ts.sys.readFile(configFileName));
+    var configObject = jsonResult.config;
+    if (!configObject) {
+        var result = {};
+        result.errors = [utils.formatDiagnostics([jsonResult.error])];
+        return result;
+    }
+    var baseDir = path.dirname(configFileName);
+    return parseOptionsFromJson(configObject, baseDir, configFileName);
+}
+exports.parseOptionsFromFile = parseOptionsFromFile;
 function parseOptionsFromJson(jsonOptions, basePath, configFileName) {
     var result = {};
     result.errors = [];
