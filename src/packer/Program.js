@@ -1,6 +1,5 @@
 "use strict";
 var path = require("path");
-var fs = require("fs");
 var ts = require("typescript-plus");
 var sorting = require("./Sorting");
 var config = require("./Config");
@@ -25,11 +24,10 @@ function run(args) {
     result.modules.forEach(function (moduleConfig) {
         emitModule(moduleConfig, result.packerOptions, result.compilerOptions);
     });
-    removeDeclarations(result.modules);
 }
 function emitModule(moduleConfig, packerOptions, compilerOptions) {
     compilerOptions.outFile = moduleConfig.outFile;
-    compilerOptions.declaration = moduleConfig.declaration || !!moduleConfig.hasSubModule;
+    compilerOptions.declaration = moduleConfig.declaration;
     var fileNames = moduleConfig.fileNames;
     var program = ts.createProgram(fileNames, compilerOptions);
     if (fileNames.length > 1) {
@@ -67,19 +65,5 @@ function emitModule(moduleConfig, packerOptions, compilerOptions) {
         var exitCode = emitResult.emitSkipped ? 1 : 0;
         ts.sys.exit(exitCode);
     }
-}
-function removeDeclarations(modules) {
-    modules.forEach(function (moduleConfig) {
-        if (!moduleConfig.declaration && moduleConfig.hasSubModule) {
-            var fileName = moduleConfig.declarationFileName;
-            if (ts.sys.fileExists(fileName)) {
-                try {
-                    fs.unlinkSync(fileName);
-                }
-                catch (e) {
-                }
-            }
-        }
-    });
 }
 run(ts.sys.args);

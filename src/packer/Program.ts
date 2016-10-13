@@ -52,13 +52,12 @@ function run(args:string[]):void {
     result.modules.forEach(moduleConfig=> {
         emitModule(moduleConfig, result.packerOptions, result.compilerOptions);
     });
-    removeDeclarations(result.modules);
 }
 
 
 function emitModule(moduleConfig:config.ModuleConfig, packerOptions:config.PackerOptions, compilerOptions:ts.CompilerOptions):void {
     compilerOptions.outFile = moduleConfig.outFile;
-    compilerOptions.declaration = moduleConfig.declaration || !!moduleConfig.hasSubModule;
+    compilerOptions.declaration = moduleConfig.declaration;
     let fileNames = moduleConfig.fileNames;
     let program = ts.createProgram(fileNames, compilerOptions);
 
@@ -101,21 +100,5 @@ function emitModule(moduleConfig:config.ModuleConfig, packerOptions:config.Packe
         ts.sys.exit(exitCode);
     }
 }
-
-function removeDeclarations(modules:config.ModuleConfig[]):void {
-    modules.forEach(moduleConfig=> {
-        if (!moduleConfig.declaration && moduleConfig.hasSubModule) {
-            let fileName = moduleConfig.declarationFileName;
-            if (ts.sys.fileExists(fileName)) {
-                try {
-                    fs.unlinkSync(fileName);
-                }
-                catch (e) {
-                }
-            }
-        }
-    })
-}
-
 
 run(ts.sys.args);

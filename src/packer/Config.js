@@ -86,7 +86,7 @@ function formatModules(moduleConfigs, packerOptions, compilerOptions, errors) {
                     continue;
                 }
                 moduleConfig.dependentModules.push(config);
-                config.hasSubModule = true;
+                config.declaration = true;
             }
         }
     });

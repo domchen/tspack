@@ -50,8 +50,6 @@ export interface ModuleConfig {
     /* @internal */
     dependentModules?:ModuleConfig[];
     /* @internal */
-    hasSubModule?:boolean;
-    /* @internal */
     fileNames?:string[];
 }
 
@@ -150,7 +148,7 @@ function formatModules(moduleConfigs:ModuleConfig[], packerOptions:PackerOptions
                     continue;
                 }
                 moduleConfig.dependentModules.push(config);
-                config.hasSubModule = true;
+                config.declaration = true;
             }
         }
     });
