@@ -26,7 +26,7 @@
 
 
 import * as fs from "fs";
-import * as ts from "typescript";
+import * as ts from "typescript-plus";
 import * as chokidar from "chokidar";
 
 function watch(rootFileNames:string[], options:ts.CompilerOptions) {

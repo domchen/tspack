@@ -24,7 +24,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////////////
 
-import * as ts from "typescript";
+import * as ts from "typescript-plus";
 
 let checker:ts.TypeChecker;
 let files:ts.SourceFile[];

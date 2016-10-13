@@ -1,6 +1,6 @@
 "use strict";
 var fs = require("fs");
-var ts = require("typescript");
+var ts = require("typescript-plus");
 var chokidar = require("chokidar");
 function watch(rootFileNames, options) {
     var files = {};

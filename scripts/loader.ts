@@ -71,7 +71,7 @@ namespace ts {
         node.charset = 'utf-8';
         node.addEventListener('load', function () {
             node.parentNode.removeChild(node);
-            this.removeEventListener('load', arguments.callee, false);
+            this.removeEventListener('load', <any>arguments.callee, false);
             callback();
         }, false);
         node.src = src;

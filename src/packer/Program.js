@@ -1,7 +1,7 @@
 "use strict";
 var path = require("path");
 var fs = require("fs");
-var ts = require("typescript");
+var ts = require("typescript-plus");
 var Sorting = require("./Sorting");
 var defaultFormatDiagnosticsHost = {
     getCurrentDirectory: function () { return ts.sys.getCurrentDirectory(); },
