@@ -23,12 +23,6 @@ exports.optionDeclarations = [
         shortName: "v",
         type: "boolean",
         description: "Print the tspack’s version."
-    },
-    {
-        name: "watch",
-        shortName: "w",
-        type: "boolean",
-        description: "Watch input files and trigger recompilation on changes."
     }
 ];
 var optionNameMapCache;

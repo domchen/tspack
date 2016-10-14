@@ -62,7 +62,14 @@ function run(args) {
         result.modules.forEach(function (moduleConfig) {
             var sortedFileNames = compiler.emitModule(moduleConfig, result.compilerOptions, errors_1);
             if (commandOptions.listSortedFiles) {
-                ts.sys.write("sorted files of '" + moduleConfig.name + "' :" + ts.sys.newLine);
+                var output = "sorted files";
+                if (moduleConfig.name) {
+                    output += " of '" + moduleConfig.name + "' :";
+                }
+                else {
+                    output += " :";
+                }
+                ts.sys.write(output + ts.sys.newLine);
                 ts.sys.write("    " + sortedFileNames.join(ts.sys.newLine + "    ") + ts.sys.newLine);
             }
         });

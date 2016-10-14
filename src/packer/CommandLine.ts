@@ -55,13 +55,13 @@ export const optionDeclarations:OptionDeclaration[] = [
         shortName: "v",
         type: "boolean",
         description: "Print the tspack’s version."
-    },
-    {
-        name: "watch",
-        shortName: "w",
-        type: "boolean",
-        description: "Watch input files and trigger recompilation on changes."
-    }
+    }//,
+    // {
+    //     name: "watch",
+    //     shortName: "w",
+    //     type: "boolean",
+    //     description: "Watch input files and trigger recompilation on changes."
+    // }
 ];
 
 export interface CommandLineOption {
