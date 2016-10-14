@@ -23,13 +23,7 @@ tsconfig.json :
   "compilerOptions": {
     "outDir": "bin-debug",
     "target": "ES5",
-    "noImplicitAny": false,
-    "removeComments": true,
-    "preserveConstEnums": true,
-    "sourceMap": false,
-    "skipDefaultLibCheck": true,
     "declaration": true,
-    "stripInternal": true,
     "accessorOptimization": true,
     "emitReflection": true,
     "reorderFiles": true,
@@ -55,7 +49,7 @@ tsconfig.json :
         "node_modules"
       ],
       "dependencies": [
-        "egret"
+        "core"
       ]
     }
   ]
