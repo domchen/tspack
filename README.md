@@ -12,3 +12,53 @@ project:
 
 global:
 `npm install tspack -g`
+
+
+# Example
+
+tsconfig.json : 
+
+```
+{
+  "compilerOptions": {
+    "outDir": "bin-debug",
+    "target": "ES5",
+    "noImplicitAny": false,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": false,
+    "skipDefaultLibCheck": true,
+    "declaration": true,
+    "stripInternal": true,
+    "accessorOptimization": true,
+    "emitReflection": true,
+    "reorderFiles": true,
+    "defines": {
+      "DEBUG": false,
+      "LANGUAGE": "en_US"
+    }
+  },
+  "modules": [
+    {
+      "name": "core",
+      "baseDir": "src/core/",
+      "exclude": [
+        "node_modules"
+      ],
+      "dependencies": []
+    },
+    {
+      "name": "web",
+      "baseDir": "src/web/",
+      "declaration": false,
+      "exclude": [
+        "node_modules"
+      ],
+      "dependencies": [
+        "egret"
+      ]
+    }
+  ]
+}
+
+```

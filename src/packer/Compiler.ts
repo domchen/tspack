@@ -26,7 +26,6 @@
 
 import * as ts from "typescript-plus";
 import * as config from "./Config";
-import * as sorting from "./Sorting";
 import * as utils from "./Utils";
 
 
@@ -39,33 +38,12 @@ export function emitModule(moduleConfig:config.ModuleConfig, compilerOptions:ts.
     let fileNames = moduleConfig.fileNames;
     let program = ts.createProgram(fileNames, compilerOptions);
 
-    let sortedFileNames:string[] = [];
-    if (fileNames.length > 1) {
-        let sortResult = sorting.sortFiles(program.getSourceFiles(), program.getTypeChecker());
-        if (sortResult.circularReferences.length > 0) {
-            let error:string = "";
-            error += "error: circular references in '" + moduleConfig.name + "' :" + ts.sys.newLine;
-            error += "    at " + sortResult.circularReferences.join(ts.sys.newLine + "    at ") + ts.sys.newLine + "    at ...";
-            return sortedFileNames;
-        }
-        // apply the sorting result.
-        let sourceFiles = program.getSourceFiles();
-        let rootFileNames = program.getRootFileNames();
-        sourceFiles.length = 0;
-        rootFileNames.length = 0;
-        sortResult.sortedFiles.forEach(sourceFile=> {
-            sourceFiles.push(sourceFile);
-            rootFileNames.push(sourceFile.fileName);
-            if (!sourceFile.isDeclarationFile) {
-                sortedFileNames.push(sourceFile.fileName);
-            }
-        });
-    }
-    else if (fileNames.length == 1) {
-        let sourceFile = program.getSourceFile(fileNames[0]);
-        if (!sourceFile.isDeclarationFile) {
-            sortedFileNames.push(sourceFile.fileName);
-        }
+    let sortResult = ts.reorderSourceFiles(program);
+    if (sortResult.circularReferences.length > 0) {
+        let error:string = "";
+        error += "error: circular references in '" + moduleConfig.name + "' :" + ts.sys.newLine;
+        error += "    at " + sortResult.circularReferences.join(ts.sys.newLine + "    at ") + ts.sys.newLine + "    at ...";
+        return sortResult.sortedFileNames;
     }
 
     let emitResult = program.emit();
@@ -75,5 +53,5 @@ export function emitModule(moduleConfig:config.ModuleConfig, compilerOptions:ts.
             errors.push(utils.formatDiagnostics([diagnostic]));
         });
     }
-    return sortedFileNames;
+    return sortResult.sortedFileNames;
 }

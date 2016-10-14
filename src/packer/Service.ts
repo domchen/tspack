@@ -28,7 +28,6 @@ import * as fs from "fs";
 import * as ts from "typescript-plus";
 import * as chokidar from "chokidar";
 import * as config from "./Config";
-import * as sorting from "./Sorting"; 
 
 export function watchModule(moduleConfig:config.ModuleConfig, compilerOptions:ts.CompilerOptions):void {
     let rootFileNames = moduleConfig.fileNames;
