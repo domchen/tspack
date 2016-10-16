@@ -120,6 +120,7 @@ export function parseOptionsFromJson(jsonOptions:any, basePath:string, configFil
         if (compilerOptions.outFile) {
             module.name = path.basename(compilerOptions.outFile);
             module.outFile = compilerOptions.outFile;
+            module.declaration = !!compilerOptions.declaration;
         }
         modules = [module];
     }

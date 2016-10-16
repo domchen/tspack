@@ -71,6 +71,7 @@ function parseOptionsFromJson(jsonOptions, basePath, configFileName) {
         if (compilerOptions.outFile) {
             module_1.name = path.basename(compilerOptions.outFile);
             module_1.outFile = compilerOptions.outFile;
+            module_1.declaration = !!compilerOptions.declaration;
         }
         modules = [module_1];
     }
