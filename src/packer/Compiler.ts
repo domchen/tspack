@@ -30,13 +30,9 @@ import * as utils from "./Utils";
 
 
 export function emitModule(moduleConfig:config.ModuleConfig, compilerOptions:ts.CompilerOptions, errors:string[]):string[] {
-    if (moduleConfig.name) {
-        compilerOptions.module = ts.ModuleKind.None;
-        compilerOptions.outFile = moduleConfig.outFile;
-        compilerOptions.declaration = moduleConfig.declaration;
-    }
+    let options = config.getCompilerOptions(moduleConfig, compilerOptions);
     let fileNames = moduleConfig.fileNames;
-    let program = ts.createProgram(fileNames, compilerOptions);
+    let program = ts.createProgram(fileNames, options);
 
     let sortResult = ts.reorderSourceFiles(program);
     if (sortResult.circularReferences.length > 0) {

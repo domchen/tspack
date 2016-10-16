@@ -30,9 +30,8 @@ import * as utils from "./Utils";
 
 export interface ModuleConfig {
     name?:string;
-    baseDir?:string;
-    outFile?:string;
     declaration?:boolean;
+    outFile?:string;
     files?:string[];
     include?:string[];
     exclude?:string[];
@@ -43,6 +42,79 @@ export interface ModuleConfig {
     dependentModules?:ModuleConfig[];
     /* @internal */
     fileNames?:string[];
+}
+
+let compilerOptionKeys = [
+"allowJs",
+"allowSyntheticDefaultImports",
+"allowUnreachableCode",
+"allowUnusedLabels",
+"baseUrl",
+"charset",
+"declaration",
+"declarationDir",
+"disableSizeLimit",
+"emitBOM",
+"emitDecoratorMetadata",
+"experimentalDecorators",
+"forceConsistentCasingInFileNames",
+"inlineSourceMap",
+"inlineSources",
+"isolatedModules",
+"lib",
+"locale",
+"mapRoot",
+"maxNodeModuleJsDepth",
+"noEmit",
+"noEmitHelpers",
+"noEmitOnError",
+"noErrorTruncation",
+"noFallthroughCasesInSwitch",
+"noImplicitAny",
+"noImplicitReturns",
+"noImplicitThis",
+"noUnusedLocals",
+"noUnusedParameters",
+"noImplicitUseStrict",
+"noLib",
+"noResolve",
+"outDir",
+"outFile",
+"preserveConstEnums",
+"project",
+"reactNamespace",
+"removeComments",
+"rootDir",
+"skipLibCheck",
+"skipDefaultLibCheck",
+"sourceMap",
+"sourceRoot",
+"strictNullChecks",
+"suppressExcessPropertyErrors",
+"suppressImplicitAnyIndexErrors",
+"traceResolution",
+"types",
+"typeRoots",
+"accessorOptimization",
+"defines",
+"emitReflection",
+"noEmitJs",
+"reorderFiles"
+];
+
+/* @internal */
+export function getCompilerOptions(moduleConfig:ModuleConfig, existOptions:ts.CompilerOptions):ts.CompilerOptions {
+    let json = JSON.stringify(existOptions);
+    let options = <ts.CompilerOptions>JSON.parse(json);
+    for (let option of compilerOptionKeys) {
+        if (moduleConfig[option] !== undefined) {
+            options[option] = moduleConfig[option];
+        }
+    }
+    if (moduleConfig.name) {
+        options.module = ts.ModuleKind.None;
+    }
+    return options;
 }
 
 export interface OptionsResult {
@@ -101,9 +173,6 @@ export function parseOptionsFromJson(jsonOptions:any, basePath:string, configFil
         formatModules(modules, outDir, basePath, result.errors);
         sortOnDependency(modules, result.errors);
         modules.forEach(moduleConfig=> {
-            if (moduleConfig.declaration === undefined) {
-                moduleConfig.declaration = !!compilerOptions.declaration;
-            }
             moduleConfig.fileNames = getFileNames(moduleConfig, basePath, result.errors);
         });
     }
@@ -120,7 +189,6 @@ export function parseOptionsFromJson(jsonOptions:any, basePath:string, configFil
         if (compilerOptions.outFile) {
             module.name = path.basename(compilerOptions.outFile);
             module.outFile = compilerOptions.outFile;
-            module.declaration = !!compilerOptions.declaration;
         }
         modules = [module];
     }
@@ -158,11 +226,7 @@ function formatModules(moduleConfigs:ModuleConfig[], outDir:string, basePath:str
 
 function getModuleFileName(moduleConfig:ModuleConfig, outDir:string, basePath:string):string {
     if (moduleConfig.outFile) {
-        let baseDir = basePath;
-        if (moduleConfig.baseDir) {
-            baseDir = utils.joinPath(baseDir, moduleConfig.baseDir);
-        }
-        return utils.joinPath(baseDir, moduleConfig.outFile);
+        return utils.joinPath(basePath, moduleConfig.outFile);
     }
     return utils.joinPath(outDir || basePath, moduleConfig.name + ".js");
 }
@@ -173,9 +237,6 @@ function isArray(value:any):value is any[] {
 
 
 function getFileNames(moduleConfig:ModuleConfig, baseDir:string, errors:string[]):string[] {
-    if (moduleConfig.baseDir) {
-        baseDir = utils.joinPath(baseDir, moduleConfig.baseDir);
-    }
     let optionResult = ts.parseJsonConfigFileContent(moduleConfig, ts.sys, baseDir);
     if (optionResult.errors.length > 0) {
         errors.push(utils.formatDiagnostics(optionResult.errors));

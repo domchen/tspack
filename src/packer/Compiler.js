@@ -1,14 +1,11 @@
 "use strict";
 var ts = require("typescript-plus");
+var config = require("./Config");
 var utils = require("./Utils");
 function emitModule(moduleConfig, compilerOptions, errors) {
-    if (moduleConfig.name) {
-        compilerOptions.module = ts.ModuleKind.None;
-        compilerOptions.outFile = moduleConfig.outFile;
-        compilerOptions.declaration = moduleConfig.declaration;
-    }
+    var options = config.getCompilerOptions(moduleConfig, compilerOptions);
     var fileNames = moduleConfig.fileNames;
-    var program = ts.createProgram(fileNames, compilerOptions);
+    var program = ts.createProgram(fileNames, options);
     var sortResult = ts.reorderSourceFiles(program);
     if (sortResult.circularReferences.length > 0) {
         var error = "";

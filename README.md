@@ -35,7 +35,6 @@ tsconfig.json :
   "modules": [
     {
       "name": "core",
-      "baseDir": "src/core/",
       "exclude": [
         "node_modules"
       ],
@@ -43,8 +42,7 @@ tsconfig.json :
     },
     {
       "name": "web",
-      "baseDir": "src/web/",
-      "declaration": false,
+      "declaration": false, // Override the default compiler options defined above.
       "exclude": [
         "node_modules"
       ],

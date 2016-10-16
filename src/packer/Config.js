@@ -2,6 +2,78 @@
 var path = require("path");
 var ts = require("typescript-plus");
 var utils = require("./Utils");
+var compilerOptionKeys = [
+    "allowJs",
+    "allowSyntheticDefaultImports",
+    "allowUnreachableCode",
+    "allowUnusedLabels",
+    "baseUrl",
+    "charset",
+    "declaration",
+    "declarationDir",
+    "disableSizeLimit",
+    "emitBOM",
+    "emitDecoratorMetadata",
+    "experimentalDecorators",
+    "forceConsistentCasingInFileNames",
+    "inlineSourceMap",
+    "inlineSources",
+    "isolatedModules",
+    "lib",
+    "locale",
+    "mapRoot",
+    "maxNodeModuleJsDepth",
+    "noEmit",
+    "noEmitHelpers",
+    "noEmitOnError",
+    "noErrorTruncation",
+    "noFallthroughCasesInSwitch",
+    "noImplicitAny",
+    "noImplicitReturns",
+    "noImplicitThis",
+    "noUnusedLocals",
+    "noUnusedParameters",
+    "noImplicitUseStrict",
+    "noLib",
+    "noResolve",
+    "outDir",
+    "outFile",
+    "preserveConstEnums",
+    "project",
+    "reactNamespace",
+    "removeComments",
+    "rootDir",
+    "skipLibCheck",
+    "skipDefaultLibCheck",
+    "sourceMap",
+    "sourceRoot",
+    "strictNullChecks",
+    "suppressExcessPropertyErrors",
+    "suppressImplicitAnyIndexErrors",
+    "traceResolution",
+    "types",
+    "typeRoots",
+    "accessorOptimization",
+    "defines",
+    "emitReflection",
+    "noEmitJs",
+    "reorderFiles"
+];
+function getCompilerOptions(moduleConfig, existOptions) {
+    var json = JSON.stringify(existOptions);
+    var options = JSON.parse(json);
+    for (var _i = 0, compilerOptionKeys_1 = compilerOptionKeys; _i < compilerOptionKeys_1.length; _i++) {
+        var option = compilerOptionKeys_1[_i];
+        if (moduleConfig[option] !== undefined) {
+            options[option] = moduleConfig[option];
+        }
+    }
+    if (moduleConfig.name) {
+        options.module = ts.ModuleKind.None;
+    }
+    return options;
+}
+exports.getCompilerOptions = getCompilerOptions;
 function findConfigFile(searchPath) {
     while (true) {
         var fileName = utils.joinPath(searchPath, "tspack.json");
@@ -52,9 +124,6 @@ function parseOptionsFromJson(jsonOptions, basePath, configFileName) {
         formatModules(modules, outDir, basePath, result.errors);
         sortOnDependency(modules, result.errors);
         modules.forEach(function (moduleConfig) {
-            if (moduleConfig.declaration === undefined) {
-                moduleConfig.declaration = !!compilerOptions.declaration;
-            }
             moduleConfig.fileNames = getFileNames(moduleConfig, basePath, result.errors);
         });
     }
@@ -71,7 +140,6 @@ function parseOptionsFromJson(jsonOptions, basePath, configFileName) {
         if (compilerOptions.outFile) {
             module_1.name = path.basename(compilerOptions.outFile);
             module_1.outFile = compilerOptions.outFile;
-            module_1.declaration = !!compilerOptions.declaration;
         }
         modules = [module_1];
     }
@@ -107,11 +175,7 @@ function formatModules(moduleConfigs, outDir, basePath, errors) {
 }
 function getModuleFileName(moduleConfig, outDir, basePath) {
     if (moduleConfig.outFile) {
-        var baseDir = basePath;
-        if (moduleConfig.baseDir) {
-            baseDir = utils.joinPath(baseDir, moduleConfig.baseDir);
-        }
-        return utils.joinPath(baseDir, moduleConfig.outFile);
+        return utils.joinPath(basePath, moduleConfig.outFile);
     }
     return utils.joinPath(outDir || basePath, moduleConfig.name + ".js");
 }
@@ -119,9 +183,6 @@ function isArray(value) {
     return Array.isArray ? Array.isArray(value) : value instanceof Array;
 }
 function getFileNames(moduleConfig, baseDir, errors) {
-    if (moduleConfig.baseDir) {
-        baseDir = utils.joinPath(baseDir, moduleConfig.baseDir);
-    }
     var optionResult = ts.parseJsonConfigFileContent(moduleConfig, ts.sys, baseDir);
     if (optionResult.errors.length > 0) {
         errors.push(utils.formatDiagnostics(optionResult.errors));
