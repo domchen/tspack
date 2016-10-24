@@ -5,7 +5,7 @@ var compiler = require("./Compiler");
 var service = require("./Service");
 var commandLine = require("./CommandLine");
 var utils = require("./Utils");
-exports.version = "0.0.8";
+exports.version = "0.1.4";
 function run(args) {
     var commandOptions = commandLine.parse(args);
     if (commandOptions.errors.length > 0) {
@@ -61,7 +61,7 @@ function run(args) {
         var errors_1 = [];
         result.modules.forEach(function (moduleConfig) {
             var sortedFileNames = compiler.emitModule(moduleConfig, result.compilerOptions, errors_1);
-            if (commandOptions.listSortedFiles) {
+            if (commandOptions.listFiles) {
                 var output = "sorted files";
                 if (moduleConfig.name) {
                     output += " of '" + moduleConfig.name + "' :";
@@ -86,7 +86,7 @@ function printHelp() {
     var newLine = ts.sys.newLine;
     var output = "";
     output += "Syntax:   tspack [options]" + newLine + newLine;
-    output += "Examples: tspack --watch" + newLine;
+    output += "Examples: tspack --version" + newLine;
     output += "Examples: tspack --project /usr/local/test/" + newLine + newLine;
     output += "Options:" + newLine;
     commandLine.optionDeclarations.forEach(function (option) {

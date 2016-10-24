@@ -39,7 +39,7 @@ export const optionDeclarations:OptionDeclaration[] = [
         description: "Print help message."
     },
     {
-        name: "listSortedFiles",
+        name: "listFiles",
         shortName: "l",
         type: "boolean",
         description: "Print names of sorted files part of the compilation."
@@ -66,7 +66,7 @@ export const optionDeclarations:OptionDeclaration[] = [
 
 export interface CommandLineOption {
     help?:boolean;
-    listSortedFiles?:boolean;
+    listFiles?:boolean;
     project?:string;
     version?:boolean;
     watch?:boolean;

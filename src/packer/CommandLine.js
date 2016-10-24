@@ -7,7 +7,7 @@ exports.optionDeclarations = [
         description: "Print help message."
     },
     {
-        name: "listSortedFiles",
+        name: "listFiles",
         shortName: "l",
         type: "boolean",
         description: "Print names of sorted files part of the compilation."

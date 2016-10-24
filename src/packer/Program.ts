@@ -31,7 +31,7 @@ import * as service from "./Service";
 import * as commandLine from "./CommandLine";
 import * as utils from "./Utils";
 
-export const version = "0.0.8";
+export const version = "0.1.4";
 
 function run(args:string[]):void {
     let commandOptions = commandLine.parse(args);
@@ -92,7 +92,7 @@ function run(args:string[]):void {
         let errors:string[] = [];
         result.modules.forEach(moduleConfig=> {
             let sortedFileNames = compiler.emitModule(moduleConfig, result.compilerOptions, errors);
-            if (commandOptions.listSortedFiles) {
+            if (commandOptions.listFiles) {
                 let output = "sorted files";
                 if (moduleConfig.name) {
                     output += " of '" + moduleConfig.name + "' :";
@@ -119,7 +119,7 @@ function printHelp():void {
     const newLine = ts.sys.newLine;
     let output = "";
     output += "Syntax:   tspack [options]" + newLine + newLine;
-    output += "Examples: tspack --watch" + newLine;
+    output += "Examples: tspack --version" + newLine;
     output += "Examples: tspack --project /usr/local/test/" + newLine + newLine;
     output += "Options:" + newLine;
     commandLine.optionDeclarations.forEach(option=> {
