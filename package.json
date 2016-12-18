@@ -1,6 +1,6 @@
 {
   "name": "tspack",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "author": "Dom Chen",
   "homepage": "http://www.idom.me/",
   "description": "A bundler for typescript. Packs many modules into a few bundled assets. Allows to split your codebase into multiple bundles, which can be loaded on demand.",
