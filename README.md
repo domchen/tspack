@@ -35,7 +35,11 @@ tsconfig.json :
   "modules": [
     {
       "name": "core",
+      "include": [
+        "src/**/*"
+      ],
       "exclude": [
+        "**/web/*",
         "node_modules"
       ],
       "dependencies": []
@@ -43,6 +47,9 @@ tsconfig.json :
     {
       "name": "web",
       "declaration": false, // Override the default compiler options defined above.
+      "include": [
+        "src/**/web/*"
+      ],
       "exclude": [
         "node_modules"
       ],
