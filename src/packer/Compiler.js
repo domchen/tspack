@@ -11,6 +11,7 @@ function emitModule(moduleConfig, compilerOptions, errors) {
         var error = "";
         error += "error: circular references in '" + moduleConfig.name + "' :" + ts.sys.newLine;
         error += "    at " + sortResult.circularReferences.join(ts.sys.newLine + "    at ") + ts.sys.newLine + "    at ...";
+        errors.push(error);
         return sortResult.sortedFileNames;
     }
     var emitResult = program.emit();
