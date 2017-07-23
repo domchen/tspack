@@ -31,7 +31,7 @@ import * as service from "./Service";
 import * as commandLine from "./CommandLine";
 import * as utils from "./Utils";
 
-export const version = "1.0.2";
+export const version = "1.0.5";
 
 function run(args:string[]):void {
     let commandOptions = commandLine.parse(args);

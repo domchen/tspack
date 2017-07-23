@@ -5,7 +5,7 @@ var compiler = require("./Compiler");
 var service = require("./Service");
 var commandLine = require("./CommandLine");
 var utils = require("./Utils");
-exports.version = "1.0.2";
+exports.version = "1.0.5";
 function run(args) {
     var commandOptions = commandLine.parse(args);
     if (commandOptions.errors.length > 0) {
